@@ -19,25 +19,25 @@ Two patient epigenetic marker files are provided in the [data](data) folder. Spe
 Clone this repository to the local filesystem using the link provided by the "Code" dropdown button above. For example:
 
 ```
-git clone https://github.com/rsinghlab/Singh_Tapinos_Collaboration.git
+git clone https://github.com/rsinghlab/ML_epigenetic_features_glioblastoma.git
 ```
 
 Change the current working directory to the folder created by the clone process:
 
 ```
-cd ./Singh_Tapinos_Collaboration
+cd ./ML_epigenetic_features_glioblastoma
 ```
 
 We recommend that a virtual environment be created to allow for the installation of the required packages and libraries in a without potential conflict with other packages already installed on the system. In the example here the virtual environment is given the same name as the project folder.
 
 ```
-python3 -m venv Singh_Tapinos_Collaboration
+python3 -m venv ML_epigenetic_features_glioblastoma
 ```
 
 Activate the new python environment.
 
 ```
-source ./Singh_Tapinos_Collaboration/bin/activate
+source ./ML_epigenetic_features_glioblastoma/bin/activate
 ```
 
 you can now install packages into the new environment using the included [requirements.txt](requirements.txt) file.
@@ -79,7 +79,7 @@ Multiple Linear Regression (MLR)
 
 ![script argument arrangement](assets/script_usage_image.jpeg)
 
-A) The script's path and filename.\n
+A) The script's path and filename.
 
 B) The first data file's path and filename. This script creates the model's training and validation (or training only) sets from this file. 
 
