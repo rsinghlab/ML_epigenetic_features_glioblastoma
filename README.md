@@ -1,16 +1,5 @@
 ## Machine learning on multiple epigenetic features reveals H3K27Ac as a driver of gene expression prediction across patients with glioblastoma.
 
-## Abstract:
-Cancer cells show remarkable plasticity and can switch lineages in response to the tumor microenvironment. Cellular plasticity drives invasiveness and metastasis and helps cancer cells to evade therapy by developing resistance to radiation and cytotoxic chemotherapy. Increased understanding of cell fate determination through epigenetic reprogramming is critical to discover how cancer cells achieve transcriptomic and phenotypic plasticity. 
-
-Glioblastoma is a perfect example of cancer evolution where cells retain an inherent level of plasticity through activation or maintenance of progenitor developmental programs. However, the principles governing epigenetic drivers of cellular plasticity in glioblastoma remain poorly understood. Here, using machine learning (ML) we employ cross-patient prediction of transcript expression using a combination of epigenetic features (ATAC-seq, CTCF ChIP-seq, RNAPII ChIP-seq, H3K27Ac ChIP-seq, and RNA-seq) of glioblastoma stem cells (GSCs). We investigate different ML and deep learning (DL) models for this task and build our final pipeline using XGBoost. The model trained on one patient generalizes to another one suggesting that the epigenetic signals governing gene transcription are consistent across patients even if GSCs can be very different. We demonstrate that H3K27Ac is the epigenetic feature providing the most significant contribution to cross-patient prediction of gene expression. In addition, using H3K27Ac signals from patients-derived GSCs, we can predict gene expression of human neural crest stem cells suggesting a shared developmental epigenetic trajectory between subpopulations of these malignant and benign stem cells.       
-
-Our cross-patient ML/DL models determine weighted patterns of influence of epigenetic marks on gene expression across patients with glioblastoma and between GSCs and neural crest stem cells. We propose that broader application of this analysis could reshape our view of glioblastoma tumor evolution and inform the design of new epigenetic targeting therapies. 
-
-![alt text](assets/schematic_overview.png)
-
-![alt text](assets/cross-patient_model_diagram.jpeg)
-
 ## Datasets:
 Two patient epigenetic marker files are provided in the [data](data) folder. Specifically, the latest versions of these GSC measurements are located in the [latest_versions_of_all_raw](data/latest_versions_of_all_raw) subfolder. Additionally, the [ind_shuffle.npy](data/ind_shuffle.npy) file is provided. This file was used to create consistent dataset splits for train, validation, and test sets.
 
