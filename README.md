@@ -74,4 +74,12 @@ B) The first data file's path and filename. This script creates the model's trai
 
 
 
-NOTE: The creation of a validation set is controlled by the ```validation = True``` or ```False``` statement in the script's ```main()``` function. The proportions given to each set  
+NOTE: The creation of a validation set is controlled by the ```validation = True``` or ```False``` statement in the script's ```main()``` function. The proportions given to each set specified in the ```get_data_patient_1``` function under the comment ```#HYPERPARAMETER TUNING SPLITS``` and ```TESTING SPLITS```.
+
+C) The second data file's path and filename.
+
+D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in the "Datasets" section above.
+
+E) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
+
+NOTE: 6/15/24 The 'script output save directory' argument and functionality is specific to the {\bf xgboost} model script. This functionality is planned for implementation in the other scripts. For now, arguments {\bf A-D} are active for those scripts.
