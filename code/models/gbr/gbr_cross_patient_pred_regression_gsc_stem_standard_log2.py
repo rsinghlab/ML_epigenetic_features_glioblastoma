@@ -8,11 +8,8 @@ import sys
 import numpy as np
 import os
 from sklearn.ensemble import GradientBoostingRegressor as GBR
-from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
-from matplotlib import pyplot as plt
-import seaborn as sn
 from sklearn import preprocessing
 from tqdm import tqdm
 from scipy.stats import pearsonr
@@ -20,13 +17,18 @@ from scipy.stats import spearmanr
 from itertools import product
 import random
 import datetime
-import math
-import shap
-import pandas as pd
 
 def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, validation):
     '''
-    Returns X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
+    Patient 1's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform processing
+    param validation: boolean to determine if function shoud produce useable validation dataset
+    return: X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
     '''
     
     if preprocess:
@@ -150,9 +152,16 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
 
 def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
     '''
-    Returns X_test, Y_test; where X refers to inputs and Y refers to labels.
+    Patient 2's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform processing
+    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
     '''
-
+    
     if preprocess:
         print("Loading patient 2 dataset...")
         # Col 1 = gene names, 2 = bin number, 3-6 = features, 7 = labels
@@ -264,10 +273,11 @@ def reset_random_seeds(seed):
     Takes a given number and assigns it
     as a random seed to various generators and the
     os environment.
+    param seed: the number to be assigned as the random seed
+    return: nothing
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
-    #tf.random.set_seed(seed)
     np.random.RandomState(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -275,35 +285,28 @@ def reset_random_seeds(seed):
     return None
 
 def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_estimators, max_depths):
-    """
-    Implements and trains a GBR model.
+    '''
+    Implements and trains a Gradirnt Boosting Regression model.
     param X_train: the training inputs
     param Y_train: the training labels
     param X_val: the validation inputs
     param Y_val: the validation labels
-    return: a trained model and training history
-    """
+    param validation: boolean to determine if function shoud make use of validation dataset
+    param learning_rates: model hyperparemeter
+    param n_estimators: model hyperparameter
+    param max_depths: model hyperparameter    
+    return: trained model and validation metrics if appropriate
+    '''
 
     # Set random seed
     reset_random_seeds(10)
     
-    #X_train = StandardScaler.fit_transform(X_train)
-    #X_val = StandardScaler.fit_transform(X_val)
-    #Y_train = StandardScaler.fit_transform(Y_train)
-    #Y_val = StandardScaler.fit_transform(Y_val)
-    
-    #Code to reshape data into 2 dimensions.
+    # Reshape data into 2 dimensions.
     reshaped_X_train = X_train.reshape((X_train.shape[0], -1), order = 'F')
     reshaped_X_val = X_val.reshape((X_val.shape[0], -1), order = 'F')
     reshaped_Y_train = np.squeeze(Y_train)
     reshaped_Y_val = np.squeeze(Y_val)
     
-    #mean_features_X_train = np.mean(X_train, axis = 1)
-    #mean_features_X_val = np.mean(X_val, axis = 1)
-    #reshaped_Y_train = np.squeeze(Y_train)
-    #reshaped_Y_val = np.squeeze(Y_val)
-    
-    #regr = make_pipeline(StandardScaler(), GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths))
     regr = GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths)
     regr.fit(reshaped_X_train, reshaped_Y_train)
     if validation == True:
@@ -321,25 +324,21 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_es
 
 
 def test_model(model, X_test, Y_test, learning_rates, n_estimators, max_depths):
-    """
-    Implements and trains a GBR model.
+    '''
+    Test/prediction function for Gradient Boosting Regression model.
+    param model: trained model
     param X_test: the testing inputs
     param Y_test: the testing labels
-    return: testing metric results
-    """
-    
-    #X_test = StandardScaler.fit_transform(X_test)
-    #Y_test = StandardScaler.fit_transform(Y_test)
-    
-    #Code to reshape data into 2 dimensions.
+    param learning_rates: model hyperparemeter
+    param n_estimators: model hyperparameter
+    param max_depths: model hyperparameter    
+    return: metric results on test set
+    '''
+        
+    # Reshape data into 2 dimensions.
     reshaped_X_test = X_test.reshape((X_test.shape[0], -1), order = 'F')
     reshaped_Y_test = np.squeeze(Y_test)
     
-    #mean_features_X_test = np.mean(X_test, axis = 1)
-    #reshaped_Y_test = np.squeeze(Y_test)
-    
-    #regr = GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths)
-    #regr.fit(reshaped_X_test, reshaped_Y_test) 
     Y_pred = model.predict(reshaped_X_test)
     PCC = pearsonr(reshaped_Y_test, Y_pred)[0]
     SCC = spearmanr(reshaped_Y_test, Y_pred)[0]
@@ -347,8 +346,41 @@ def test_model(model, X_test, Y_test, learning_rates, n_estimators, max_depths):
     
     return PCC, SCC, R2
 
-def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates, n_estimators, max_depths):
+def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates, n_estimators, max_depths):
+    '''
+    "Main" function for model script.
+    param pcc_dict: dictionary of PCC metric values
+    param r2_score_dict: dictionary of R2 metric values
+    param scc_dict: dictionary of SCC metric values
+    param val_pcc_dict: dictionary of PCC metric values
+    param val_r2_dict: dictionary of R2 metric values
+    param val_scc_dict: dictionary of SCC metric values
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param count: the script run count
+    param learning_rates: model hyperparemeter
+    param n_estimators: model hyperparameter
+    param max_depths: model hyperparameter
+    return: model, datasets, indices, metric dictionaries, gene names, and number of genes 
+    '''
+    # Save directory - path where result files and figures are saved
+    global save_directory
 
+    if sys.argv[4:]:
+        # Save path given by the user in the 4th argument to the global variable
+        save_directory = sys.argv[4]
+        # Create the given directory
+        print(f'Using {save_directory} as the save directory for experiment output.')
+        os.makedirs(save_directory, exist_ok=True)
+
+    else:
+        save_directory = './cross_patient_regression_using_gbr_results_and_figures'
+        print('Using the default save directory:')
+        print('./cross_patient_regression_using_gbr_results_and_figures')
+        print('since a directory was not specified.')
+        os.makedirs(save_directory, exist_ok=True)
+    
     # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
     validation = False
     
@@ -356,17 +388,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
-    
-    # NOTE: file_path_1 is the data file for training and validating the model.
-    #file_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    #file_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    # NOTE file_path_2 is the datafile for testing the model.
-    #file_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    #file_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    #indices = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle.npy"
-    
+        
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
@@ -426,7 +448,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
 
     now = datetime.datetime.now()
     # Script log file.
-    with open('pngs_gbr_cross_patient_pred_regression_gsc_stem_standard_log2/gbr_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/gbr_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')
      
         log.write(f'CURRENT COUNT: {count},learning rate: {learning_rates},n estimator: {n_estimators}, max depth: {max_depths},')
@@ -435,15 +457,13 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
 
 
     
-    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model
+    return pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model
 
 if __name__ == '__main__':
 
-    loss_dict = {}
     pcc_dict = {}
     r2_score_dict = {}
     scc_dict = {}
-    val_loss_dict = {}
     val_pcc_dict = {}
     val_r2_score_dict = {}
     val_scc_dict = {}
@@ -467,18 +487,6 @@ if __name__ == '__main__':
     count=0
 
     for lr, ne, md in product(*param_values): 
-        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md)
+        pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model = main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md)
         count+=1
-
-    #min_loss_count = min(loss_dict, key=loss_dict.get)
-    #max_pcc_count = max(pcc_dict, key=pcc_dict.get)
-    #max_r2_count = max(r2_score_dict, key=r2_score_dict.get)
-    #max_scc_count = max(scc_dict, key=scc_dict.get)
-    #min_val_loss_count = min(val_loss_dict, key=val_loss_dict.get)
-    max_val_pcc_count = max(val_pcc_dict, key=val_pcc_dict.get)
-    max_val_r2_count = max(val_r2_score_dict, key=val_r2_score_dict.get)
-    max_val_scc_count = max(val_scc_dict, key=val_scc_dict.get)
-    
-
-    #print("\n Min training loss and count: ", min(loss_dict.values()), min_loss_count, "\n Max training pcc and count: ", max(pcc_dict.values()), max_pcc_count, "\n Max training R2 and count: ", max(r2_score_dict.values()), max_r2_count, "\n Max training scc and count: ", max(scc_dict.values()), max_scc_count, "\n Min val loss and count: ", min(val_loss_dict.values()), min_val_loss_count, "\n Max val pcc and count: ", max(val_pcc_dict.values()), max_val_pcc_count, "\n Max val R2 and count: ", max(val_r2_score_dict.values()), max_val_r2_count, "\n Max val scc and count: ", max(val_scc_dict.values()), max_val_scc_count)
-    
+ 

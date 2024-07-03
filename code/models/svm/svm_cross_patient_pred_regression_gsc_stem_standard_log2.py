@@ -279,7 +279,6 @@ def reset_random_seeds(seed):
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
-    #tf.random.set_seed(seed)
     np.random.RandomState(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -287,7 +286,7 @@ def reset_random_seeds(seed):
     return None
 
 def train_model(X_train, X_val, Y_train, Y_val, validation, C_value, epsilon_value):
-    """
+    '''
     Train function for a SVM model.
     param X_train: the training epigenetic inputs.
     param Y_train: the training RNAseq values.
@@ -297,28 +296,18 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, C_value, epsilon_val
     param C_value: model hyperparemeter
     param epsilon_value: model hyperparameter
     return: Trained model and validation metrics if appropriate.
-    """
+    '''
 
     # Set random seed
     reset_random_seeds(9)
     
-    #X_train = StandardScaler.fit_transform(X_train)
-    #X_val = StandardScaler.fit_transform(X_val)
-    #Y_train = StandardScaler.fit_transform(Y_train)
-    #Y_val = StandardScaler.fit_transform(Y_val)
     
-    #Code to reshape data into 2 dimensions.
+    # Reshape data into 2 dimensions.
     reshaped_X_train = X_train.reshape((X_train.shape[0], -1), order = 'F')
     reshaped_X_val = X_val.reshape((X_val.shape[0], -1), order = 'F')
     reshaped_Y_train = np.squeeze(Y_train)
     reshaped_Y_val = np.squeeze(Y_val)
     
-    #mean_features_X_train = np.mean(X_train, axis = 1)
-    #mean_features_X_val = np.mean(X_val, axis = 1)
-    #reshaped_Y_train = np.squeeze(Y_train)
-    #reshaped_Y_val = np.squeeze(Y_val)
-    
-    #regr = make_pipeline(StandardScaler(), SVR(kernel='linear', C=C_value, epsilon=epsilon_value))
     regr = SVR(kernel='linear', C=C_value, epsilon=epsilon_value)
     regr.fit(reshaped_X_train, reshaped_Y_train)
     if validation == True:
@@ -336,24 +325,19 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, C_value, epsilon_val
 
 
 def test_model(model, X_test, Y_test, C_value, epsilon_value):
-    """
+    '''
     Test/prediction function for a SVM model.
     param X_test: the testing epigenetic inputs.
     param Y_test: the testing RNAseq values
     param C_value: model hyperparemeter
     param epsilon_value: model hyperparameter    
-    return: Metric results on test set.
-    """
+    return: metric results on test set
+    '''
     
-    #Code to reshape data into 2 dimensions.
+    # Reshape data into 2 dimensions.
     reshaped_X_test = X_test.reshape((X_test.shape[0], -1), order = 'F')
     reshaped_Y_test = np.squeeze(Y_test)
     
-    #mean_features_X_test = np.mean(X_test, axis = 1)
-    #reshaped_Y_test = np.squeeze(Y_test)
-    
-    #regr = SVR(kernel='linear', C=C_value, epsilon=epsilon_value)
-    #regr.fit(reshaped_X_test, reshaped_Y_test) 
     Y_pred = model.predict(reshaped_X_test)
     PCC = pearsonr(reshaped_Y_test, Y_pred)[0]
     SCC = spearmanr(reshaped_Y_test, Y_pred)[0]
