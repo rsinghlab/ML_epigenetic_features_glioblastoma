@@ -1,19 +1,16 @@
 '''
-This is a Support Vector Regression version of a Support Vector Machine 
-algorithm model. It is intended to be one of the baseline models 
-for the cross patient regression analysis.
+This is a Support Vector Regression version of a 
+Support Vector Machine algorithm model. 
+The script is configured for cross-patient 
+prediction experiments.
 '''
 
 import sys
 import numpy as np
 import os
-from sklearn import svm
 from sklearn.svm import SVR
-from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
-from matplotlib import pyplot as plt
-import seaborn as sn
 from sklearn import preprocessing
 from tqdm import tqdm
 from scipy.stats import pearsonr
@@ -21,13 +18,18 @@ from scipy.stats import spearmanr
 from itertools import product
 import random
 import datetime
-import math
-import shap
-import pandas as pd
 
 def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, validation):
     '''
-    Returns X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
+    Patient 1's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform processing
+    param validation: boolean to determine if function shoud produce useable validation dataset
+    return: X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
     '''
     
     if preprocess:
@@ -151,7 +153,14 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
 
 def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
     '''
-    Returns X_test, Y_test; where X refers to inputs and Y refers to labels.
+    Patient 2's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform processing
+    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
     '''
 
     if preprocess:
@@ -265,6 +274,8 @@ def reset_random_seeds(seed):
     Takes a given number and assigns it
     as a random seed to various generators and the
     os environment.
+    param seed: the number to be assigned as the random seed
+    return: nothing
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -282,6 +293,9 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, C_value, epsilon_val
     param Y_train: the training RNAseq values.
     param X_val: the validation epigenetic inputs if appropriate.
     param Y_val: the validation RNAseq values if appropriate.
+    param validation: boolean to determine if function shoud make use of validation dataset
+    param C_value: model hyperparemeter
+    param epsilon_value: model hyperparameter
     return: Trained model and validation metrics if appropriate.
     """
 
@@ -326,6 +340,8 @@ def test_model(model, X_test, Y_test, C_value, epsilon_value):
     Test/prediction function for a SVM model.
     param X_test: the testing epigenetic inputs.
     param Y_test: the testing RNAseq values
+    param C_value: model hyperparemeter
+    param epsilon_value: model hyperparameter    
     return: Metric results on test set.
     """
     
@@ -346,8 +362,40 @@ def test_model(model, X_test, Y_test, C_value, epsilon_value):
     return PCC, SCC, R2
 
 
-def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, C_value, epsilon_value):
+def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, C_value, epsilon_value):
+    '''
+    "Main" function for model script.
+    param pcc_dict: dictionary of PCC metric values
+    param r2_score_dict: dictionary of R2 metric values
+    param scc_dict: dictionary of SCC metric values
+    param val_pcc_dict: dictionary of PCC metric values
+    param val_r2_dict: dictionary of R2 metric values
+    param val_scc_dict: dictionary of SCC metric values
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param count: the script run count
+    param C_value: model hyperparemeter
+    param epsilon_value: model hyperparameter
+    return: model, datasets, indices, metric dictionaries, gene names, and number of genes 
+    '''
+    # Save directory - path where result files and figures are saved
+    global save_directory
 
+    if sys.argv[4:]:
+        # Save path given by the user in the 4th argument to the global variable
+        save_directory = sys.argv[4]
+        # Create the given directory
+        print(f'Using {save_directory} as the save directory for experiment output.')
+        os.makedirs(save_directory, exist_ok=True)
+
+    else:
+        save_directory = './cross_patient_regression_using_svm_results_and_figures'
+        print('Using the default save directory:')
+        print('./cross_patient_regression_using_svm_results_and_figures')
+        print('since a directory was not specified.')
+        os.makedirs(save_directory, exist_ok=True)
+    
     # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
     validation = False
     
@@ -355,17 +403,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
-    
-    # NOTE: file_path_1 is the data file for training and validating the model.
-    #file_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    #file_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    # NOTE file_path_2 is the datafile for testing the model.
-    #file_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    #file_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    #indices = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle.npy"
-    
+        
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
@@ -421,11 +459,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     print(f"R2,{test_R2}")
     print('*'*25)
 
-
-
     now = datetime.datetime.now()
     # Script log file.
-    with open('pngs_svm_cross_patient_pred_regression_gsc_stem_standard_log2/svm_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/svm_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')
      
         log.write(f'CURRENT COUNT: {count},C value: {C_value},epsilon value: {epsilon_value},')
@@ -434,15 +470,13 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
 
 
     
-    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model
+    return pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model
 
 if __name__ == '__main__':
 
-    loss_dict = {}
     pcc_dict = {}
     r2_score_dict = {}
     scc_dict = {}
-    val_loss_dict = {}
     val_pcc_dict = {}
     val_r2_score_dict = {}
     val_scc_dict = {}
@@ -472,18 +506,7 @@ if __name__ == '__main__':
     count=0
 
     for Cv, ev in product(*param_values): 
-        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, C_value = Cv, epsilon_value = ev)
+        pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model = main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, C_value = Cv, epsilon_value = ev)
         count+=1
-
-    #min_loss_count = min(loss_dict, key=loss_dict.get)
-    #max_pcc_count = max(pcc_dict, key=pcc_dict.get)
-    #max_r2_count = max(r2_score_dict, key=r2_score_dict.get)
-    #max_scc_count = max(scc_dict, key=scc_dict.get)
-    #min_val_loss_count = min(val_loss_dict, key=val_loss_dict.get)
-    max_val_pcc_count = max(val_pcc_dict, key=val_pcc_dict.get)
-    max_val_r2_count = max(val_r2_score_dict, key=val_r2_score_dict.get)
-    max_val_scc_count = max(val_scc_dict, key=val_scc_dict.get)
     
-
-    #print("\n Min training loss and count: ", min(loss_dict.values()), min_loss_count, "\n Max training pcc and count: ", max(pcc_dict.values()), max_pcc_count, "\n Max training R2 and count: ", max(r2_score_dict.values()), max_r2_count, "\n Max training scc and count: ", max(scc_dict.values()), max_scc_count, "\n Min val loss and count: ", min(val_loss_dict.values()), min_val_loss_count, "\n Max val pcc and count: ", max(val_pcc_dict.values()), max_val_pcc_count, "\n Max val R2 and count: ", max(val_r2_score_dict.values()), max_val_r2_count, "\n Max val scc and count: ", max(val_scc_dict.values()), max_val_scc_count)
     
