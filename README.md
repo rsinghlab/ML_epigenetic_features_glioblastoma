@@ -82,4 +82,4 @@ D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in
 
 E) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
 
-NOTE: 10/18/24 The 'script output save directory' argument and functionality is specific to the **XGBoost, Support Vector Machine, and Gradient Boosting Regression*** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
+NOTE: 10/18/24 The 'script output save directory' argument and functionality is specific to the **XGBoost, Support Vector Machine, and Gradient Boosting Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
