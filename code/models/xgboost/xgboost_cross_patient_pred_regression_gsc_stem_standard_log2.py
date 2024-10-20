@@ -914,7 +914,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
         os.makedirs(save_directory, exist_ok=True)
 
     else:
-        save_directory = './cross_patient_regression_using_xgboost_results_and_figures'
+        save_directory = './cross_patient_regression_using_xgboost_results_and_figures/'
         print('Using the default save directory:')
         print('./cross_patient_regression_using_xgboost_results_and_figures')
         print('since a directory was not provided.')
