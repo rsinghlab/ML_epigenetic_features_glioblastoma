@@ -478,14 +478,25 @@ def visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importance
     sn.set(style ='white', font_scale = 1.5)
     fig, ax = plt.subplots(figsize=(9, 2.5))
     
-    importance_sums = pd.DataFrame({'metric' : ['h3k27ac_sum_importances', 'atac_sum_importances', 'ctcf_sum_importances', 'rnapii_sum_importances'],
-                                   'value' : [h3k27ac_sum_importances, atac_sum_importances, ctcf_sum_importances, rnapii_sum_importances]})
+    importance_sums = pd.DataFrame({'metric' : ['h3k27ac_sum_importances', 
+                                                'atac_sum_importances', 
+                                                'ctcf_sum_importances', 
+                                                'rnapii_sum_importances'],
+                                   'value' : [h3k27ac_sum_importances, 
+                                              atac_sum_importances, 
+                                              ctcf_sum_importances, 
+                                              rnapii_sum_importances]})
+    
     #plot_pcc = sns.barplot(data = MLP_perturbation_PCC, palette = ['turquoise', 'grey', 'orange', 'tan', 'coral',     'deepskyblue', 'yellowgreen'], x = 'value', y = 'model', errorbar=('sd'), capsize = 0.2)
-    plot_pcc = sn.barplot(data = importance_sums, palette = ['red', 'red', 'red', 'red'], x = 'value', y = 'metric')
+    plot_pcc = sn.barplot(data = importance_sums, palette = ['red', 'red', 'red', 'red'], 
+                          x = 'value', y = 'metric')
     #plot_pcc.set_xticklabels(plot_pcc.get_xticklabels(), rotation = -45, horizontalalignment='left')
     plot_pcc.set_yticklabels(plot_pcc.get_yticklabels())
     plt.xlabel('Sums of importance values over bins')
-    ax.set_yticklabels(['H3K27Ac importance sum', 'CTCF importance sum', 'ATAC importance sum', 'RNAPII importance sum'])
+    ax.set_yticklabels(['H3K27Ac importance sum', 
+                        'CTCF importance sum', 
+                        'ATAC importance sum', 
+                        'RNAPII importance sum'])
     plt.ylabel('')
     plt.xlim(0.0, 1.0)
     #plt.legend(bbox_to_anchor = (1.02, 1), borderaxespad = 0)
@@ -494,8 +505,13 @@ def visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importance
     for i in [0, 1, 2, 3]:
         p = plot_pcc.patches[i]
         print(p)
-        plot_pcc.annotate("%.6f" % p.get_width(), xy=(p.get_width(), p.get_y() + p.get_height() / 2), color='black', xytext = (30, 0), textcoords='offset points', ha="left", va="center")
-    plt.savefig(save_directory + '/xgboost_mean_feature_importances.png', bbox_inches = 'tight')
+        plot_pcc.annotate("%.6f" % p.get_width(), 
+                          xy=(p.get_width(), p.get_y() + p.get_height() / 2), 
+                          color='black', xytext = (30, 0), 
+                          textcoords='offset points', ha="left", va="center")
+    plt.savefig(save_directory + 
+                '/xgboost_sums_of_feature_importances.png', 
+                bbox_inches = 'tight')
     
     return None
 
