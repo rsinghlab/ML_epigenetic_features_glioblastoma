@@ -22,12 +22,15 @@ from itertools import product
 import random
 import datetime
 import math
-#import shap
 import pandas as pd
 
-def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, validation):
+def get_data_patient_1(file_path, indices, gene_dict, num_genes, 
+                       preprocess, validation):
     '''
-    Returns X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
+    return: X_train, Y_train, X_val, Y_val; where X refers 
+    to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
     '''
     
     if preprocess:
@@ -40,7 +43,8 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         gene_names = np.unique(combined_diff[:, 0])
         num_genes = len(gene_names)
         
-        # Create a dictionary to map each gene name to a unique index (number like 0, 1, 2,...,#genes-1)
+        # Create a dictionary to map each gene name to a 
+        # unique index (number like 0, 1, 2,...,#genes-1)
         gene_dict = dict(zip(gene_names, range(num_genes)))
 
         # Get the number of features (last column is labels - RNAseq)
@@ -55,7 +59,8 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         Y = np.zeros((num_genes, 1))
 
         for name in tqdm(gene_names):
-            # Each subset is of shape 100 x 6 (number of 100bp bins x number of columns)
+            # Each subset is of shape 100 x 6 (number of 
+            # 100bp bins x number of columns)
             subset = combined_diff[np.where(combined_diff[:, 0] == name)]
 
             # Create matrix of data
@@ -68,8 +73,9 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
 
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's RNAseq 
+            # value (since all 50 bins have the same value when 
+            # using the featureCounts utility and process).
             Y[gene_ind] = data[0, -1]
 
             #NOTE: Evaluating different methods of determining the RNAseq value.
@@ -101,8 +107,10 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         
         else:
             # TESTING SPLITS
-            # The training set will have 99% of the patient 1 data to train the model.
-            # The validation set is reduced to 1% but ket to not break the function.
+            # The training set will have 99% of the 
+            # patient 1 data to train the model.
+            # The validation set is reduced to 1% but 
+            # still present to not break the function.
             train_ind = ind
             #train_ind = ind[0: int(0.99*num_genes)]
             val_ind = ind[int(0.99*num_genes):]
@@ -165,9 +173,15 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
 
     return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
 
-def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
+def get_data_patient_2(file_path, indices, gene_dict, 
+                       num_genes, preprocess):
     '''
-    Returns X_test, Y_test; where X refers to inputs and Y refers to labels.
+    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
+    return: patient2_ind (the indices for the patient 2 dataset. This
+    may be a subset of the indices shuffle index if the number of genes
+    in the test set is lower than the 20,015 in the training set) 
     '''
 
     if preprocess:
@@ -179,7 +193,8 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
         gene_names = np.unique(combined_diff[:, 0])
         num_genes = len(gene_names)
 
-        # Create a dictionary to map each gene name to a unique index (number like 0, 1, 2,...,#genes-1)
+        # Create a dictionary to map each gene name to a unique 
+        # index (number like 0, 1, 2,...,#genes-1)
         gene_dict = dict(zip(gene_names, range(num_genes)))
 
         # Get the number of features (last column is labels - RNAseq)
@@ -195,7 +210,8 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
         for name in tqdm(gene_names):
 
-            # Each subset is of shape 100 x 6 (number of 100bp bins x number of columns)
+            # Each subset is of shape 100 x 6 (number of 
+            # 100bp bins x number of columns)
             subset = combined_diff[np.where(combined_diff[:, 0] == name)]
 
             # Create matrix of data. 
@@ -207,8 +223,10 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
    
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's 
+            # RNAseq value (since all 50 bins
+            # have the same value when using the 
+            # featureCounts utility and process).
             Y[gene_ind] = data[0, -1]
 
             #NOTE: Evaluating different methods of determining the RNAseq value.
@@ -228,7 +246,24 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
+        # Original shuffle index file loaded
         ind = np.load(indices, allow_pickle=True)
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # keeping only the expressed genes in combined_diff
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient2_ind = np.delete(ind, indexes)
+        print(patient2_ind.shape)
+
+        
+        # 10/28/24 Custom shuffle index for Omnibus datasets loaded
+        #ind = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/\
+        #ind_shuffle_for_Omnibus_datasets.npy', allow_pickle=True)
+        # 11/1/24 Custom shuffle index for Omnibus v3 datasets loaded
+        #ind = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/\
+        #ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)        
 
         # Splits for this patient data can be adjusted here.
         #train_ind = ind[0: int(0.7*num_genes)]
@@ -237,8 +272,9 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
 
         # NOTE: For now use entire dataset for test set.
-        test_ind = ind
-
+        #test_ind = ind
+        test_ind = patient2_ind
+        
         #X_train = X[train_ind]
         #X_val = X[val_ind]
         # Use all of the dataset for test.
@@ -257,7 +293,7 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
         # Perform calculation on each column of the seperate train, validation and test sets.
         for dataset in datasets:
-            for i in range(dataset.shape[2]): ### Standardization on all columns.
+            ####for i in range(dataset.shape[2]): ### Standardization on all columns.
             # The lines below are for PERTURBATION ANALYSIS ONLY. Uncomment the line that applies to the feature
             # with all zero values. The for loop line above needs to be commented when using one of the 
             # lines below.
@@ -267,9 +303,14 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
             #for i in [0,1,3]: ### NO standardization on column 2 - ATAC for perturbation analysis ONLY.
             #for i in [0,1,2]: ### NO standardization on column 3 - RNA Pol II for perturbation analysis ONLY.
 
-            #for i in [0,1]: ### NO standardization on column 3 - ATAC and RNA Pol II for neural crest cell testing ONLY.
-            #for i in [0,1,2]: ### NO standardization on column 4 - RNA Pol II for neural progenitor cell testing ONLY.
+            #for i in [0,1]: ### NO standardization on columns 2 and 3 - ATAC and RNA Pol II for neural crest cell testing ONLY.
+            #for i in [0,1,2]: ### NO standardization on column 3 - RNA Pol II for neural progenitor cell testing ONLY.
             #for i in [0,1]: ### NO standardization on column 3 and 4 - ATAC RNA Pol II for redued feature testing of GSC1 and GSC2 ONLY.
+
+            #for i in [0,1,2]: ### NO standardization on column 3 - RNA Pol II for neural progenitor cell testing ONLY.
+
+            #10/28/24
+            for i in [0]: ### NO standardization on columns 1,2,and 3 - CTCF, ATAC and RNA Pol II for Omnibus cell testing ONLY.
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
 
@@ -277,17 +318,23 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
         #dataset[:, :, 2:5] = 0.000000 # Experiment 11/14/23 set values for ATAC and RNApol2 to 0.000000 to match crest and progenitor cell datasets feature values
         # Experiment 11/19/23 set values for ATAC and RNApol2 to 0.000000 to match progenitor cell datasets feature values
 
-        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", X_test, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", Y_test, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                X_test, 
+                allow_pickle=True)
+        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                Y_test, 
+                allow_pickle=True)
 
     else:
-        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
-        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
+        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle=True)
+        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle=True)
 
         gene_dict = gene_dict
         num_genes = num_genes
 
-    return X_test, Y_test, gene_dict, num_genes
+    return X_test, Y_test, gene_dict, num_genes, patient2_ind
 
 
 def reset_random_seeds(seed):
@@ -305,14 +352,17 @@ def reset_random_seeds(seed):
 
     return None
 
-def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_estimators, max_depths, min_child_weight, colsample_bytree, subsample, gamma, count):
+def train_model(X_train, X_val, Y_train, Y_val, validation, 
+                learning_rates, n_estimators, max_depths, 
+                min_child_weight, colsample_bytree, 
+                subsample, gamma, count):
     """
-    Implements and trains a GBR model.
+    Implements and trains a XGBoost model.
     param X_train: the training inputs
     param Y_train: the training labels
     param X_val: the validation inputs
     param Y_val: the validation labels
-    return: a trained model and training history
+    return: a trained model and training metrics
     """
 
     #random_state = count
@@ -320,27 +370,30 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_es
     
     # Set random seed
     reset_random_seeds(random_state)
-    
-    #X_train = StandardScaler.fit_transform(X_train)
-    #X_val = StandardScaler.fit_transform(X_val)
-    #Y_train = StandardScaler.fit_transform(Y_train)
-    #Y_val = StandardScaler.fit_transform(Y_val)
-    
-    #Code to reshape data into 2 dimensions.
-    reshaped_X_train = X_train.reshape((X_train.shape[0], -1), order = 'F')
-    reshaped_X_val = X_val.reshape((X_val.shape[0], -1), order = 'F')
+        
+    # Reshape data into 2 dimensions.
+    reshaped_X_train = X_train.reshape((X_train.shape[0], -1), 
+                                       order = 'F')
+    reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
+                                   order = 'F')
     reshaped_Y_train = np.squeeze(Y_train)
     reshaped_Y_val = np.squeeze(Y_val)
     
-    #mean_features_X_train = np.mean(X_train, axis = 1)
-    #mean_features_X_val = np.mean(X_val, axis = 1)
-    #reshaped_Y_train = np.squeeze(Y_train)
-    #reshaped_Y_val = np.squeeze(Y_val)
-    
-    #regr = make_pipeline(StandardScaler(), GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths))
-    #regr = GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths)
-    xgb_reg = xgb.XGBRegressor(objective = 'reg:squarederror', tree_method="gpu_hist", learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths, min_child_weight = min_child_weight, colsample_bytree = colsample_bytree, subsample = subsample, gamma = gamma, seed = random_state)
+    # Define model.
+    xgb_reg = xgb.XGBRegressor(objective = 'reg:squarederror', 
+                               tree_method = 'gpu_hist', 
+                               learning_rate = learning_rates, 
+                               n_estimators = n_estimators, 
+                               max_depth = max_depths, 
+                               min_child_weight = min_child_weight, 
+                               colsample_bytree = colsample_bytree, 
+                               subsample = subsample, 
+                               gamma = gamma, seed = random_state)
+    # Fit model to data. 
     xgb_reg.fit(reshaped_X_train, reshaped_Y_train)
+    
+    # Evaluate model with validation data if 
+    # stipulated and return validation metrics.
     if validation == True:
         Y_pred = xgb_reg.predict(reshaped_X_val)
         PCC = pearsonr(reshaped_Y_val, Y_pred)[0]
@@ -349,32 +402,28 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_es
     
         return xgb_reg, PCC, SCC, R2
     
-    else:
-        
+    else:       
         return xgb_reg
     
 
 
-def test_model(model, X_test, Y_test, learning_rates, n_estimators, max_depths, min_child_weight, colsample_bytree, subsample, gamma, count):
+def test_model(model, X_test, Y_test, learning_rates, 
+               n_estimators, max_depths, 
+               min_child_weight, colsample_bytree, 
+               subsample, gamma, count):
     """
-    Implements and trains a GBR model.
+    Evaluates the trained XGBoost model.
     param X_test: the testing inputs
     param Y_test: the testing labels
     return: testing metric results
     """
-    
-    #X_test = StandardScaler.fit_transform(X_test)
-    #Y_test = StandardScaler.fit_transform(Y_test)
-    
-    #Code to reshape data into 2 dimensions.
-    reshaped_X_test = X_test.reshape((X_test.shape[0], -1), order = 'F')
+        
+    # Reshape data into 2 dimensions.
+    reshaped_X_test = X_test.reshape((X_test.shape[0], -1), 
+                                     order = 'F')
     reshaped_Y_test = np.squeeze(Y_test)
     
-    #mean_features_X_test = np.mean(X_test, axis = 1)
-    #reshaped_Y_test = np.squeeze(Y_test)
-    
-    #regr = GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths)
-    #regr.fit(reshaped_X_test, reshaped_Y_test) 
+    # Evaluate the model using the test dataset.
     Y_pred = model.predict(reshaped_X_test)
     PCC = pearsonr(reshaped_Y_test, Y_pred)[0]
     SCC = spearmanr(reshaped_Y_test, Y_pred)[0]
@@ -382,7 +431,76 @@ def test_model(model, X_test, Y_test, learning_rates, n_estimators, max_depths, 
     
     return PCC, SCC, R2
 
-def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
+def get_feature_importances(model):
+    importances = model.feature_importances_
+    h3k27ac_importances = importances[:50]
+    ctcf_importances = importances[50:100]
+    atac_importances = importances[100:150]
+    rnapii_importances = importances[150:200]
+    
+    print(len(h3k27ac_importances))
+    h3k27ac_mean_importances = np.mean(h3k27ac_importances)
+    atac_mean_importances = np.mean(atac_importances)
+    ctcf_mean_importances = np.mean(ctcf_importances)
+    rnapii_mean_importances = np.mean(rnapii_importances)
+
+    h3k27ac_sum_importances = np.sum(h3k27ac_importances)
+    atac_sum_importances = np.sum(atac_importances)
+    ctcf_sum_importances = np.sum(ctcf_importances)
+    rnapii_sum_importances = np.sum(rnapii_importances)
+
+    # Create csv file to hold each epigenetic feature's mean importance.
+    with open(save_directory + 
+              '/xgboost_cross_patient_regression_gsc_stem_standandard_mean_feature_importances.csv', 'w') \
+              as log:
+            log.write(f'H3K27ac mean importance,{h3k27ac_mean_importances}'),
+            log.write('\n' f'ATAC mean importance,{atac_mean_importances}'),
+            log.write('\n' f'CTCF mean importance,{ctcf_mean_importances}'),
+            log.write('\n' f'RNAPII mean importance,{rnapii_mean_importances}')
+
+    # Create csv file to hold each epigenetic feature's sum importance.
+    with open(save_directory + 
+              '/xgboost_cross_patient_regression_gsc_stem_standandard_sum_feature_importances.csv', 'w') \
+            as log:
+            log.write(f'H3K27ac sum importance,{h3k27ac_sum_importances}'),
+            log.write('\n' f'ATAC sum importance,{atac_sum_importances}'),
+            log.write('\n' f'CTCF sum importance,{ctcf_sum_importances}'),
+            log.write('\n' f'RNAPII sum importance,{rnapii_sum_importances}')
+            
+    return h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
+           rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
+           ctcf_sum_importances, rnapii_sum_importances
+
+
+def visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
+           rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
+           ctcf_sum_importances, rnapii_sum_importances):
+    sn.set(style ='white', font_scale = 1.5)
+    fig, ax = plt.subplots(figsize=(9, 2.5))
+    
+    importance_sums = pd.DataFrame({'metric' : ['h3k27ac_sum_importances', 'atac_sum_importances', 'ctcf_sum_importances', 'rnapii_sum_importances'],
+                                   'value' : [h3k27ac_sum_importances, atac_sum_importances, ctcf_sum_importances, rnapii_sum_importances]})
+    #plot_pcc = sns.barplot(data = MLP_perturbation_PCC, palette = ['turquoise', 'grey', 'orange', 'tan', 'coral',     'deepskyblue', 'yellowgreen'], x = 'value', y = 'model', errorbar=('sd'), capsize = 0.2)
+    plot_pcc = sn.barplot(data = importance_sums, palette = ['red', 'red', 'red', 'red'], x = 'value', y = 'metric')
+    #plot_pcc.set_xticklabels(plot_pcc.get_xticklabels(), rotation = -45, horizontalalignment='left')
+    plot_pcc.set_yticklabels(plot_pcc.get_yticklabels())
+    plt.xlabel('Sums of importance values over bins')
+    ax.set_yticklabels(['H3K27Ac importance sum', 'CTCF importance sum', 'ATAC importance sum', 'RNAPII importance sum'])
+    plt.ylabel('')
+    plt.xlim(0.0, 1.0)
+    #plt.legend(bbox_to_anchor = (1.02, 1), borderaxespad = 0)
+    #for a in ax.containers:
+    #ax.bar_label(ax.containers[0], fmt='%.3f', color='black', label_type='edge', xytext = (0))
+    for i in [0, 1, 2, 3]:
+        p = plot_pcc.patches[i]
+        print(p)
+        plot_pcc.annotate("%.6f" % p.get_width(), xy=(p.get_width(), p.get_y() + p.get_height() / 2), color='black', xytext = (30, 0), textcoords='offset points', ha="left", va="center")
+    plt.savefig(save_directory + '/xgboost_mean_feature_importances.png', bbox_inches = 'tight')
+    
+    return None
+
+
+def get_gene_names(gene_dict, indices, test_data_shape, num_genes, shuffle_index):
     '''
     Using the input dictionary of gene names and their unique identifier
     this function extracts the genes and their index position in X_test data
@@ -392,9 +510,13 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
     returns: Returns a list of the gene names
     '''
     # Load indices file used for shuffle operation.
-    shuffle_index = np.load(indices, allow_pickle=True)
-    
+    #shuffle_index = np.load(indices, allow_pickle=True)
+    # 10/28/24 Load custom shuffle index for Omnibus datasets
+    #shuffle_index = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle_for_Omnibus_datasets.npy', allow_pickle=True)
+    # 11/1/24 Custom shuffle index for Omnibus v3 datasets loaded
+    #shuffle_index = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)    
     #shuffle_index = np.arange(0, 20015) 
+
     # Invert order of keys and values for gene dictionary.
     inverted_gene_dict = {v:k for k, v in gene_dict.items()}
 
@@ -440,10 +562,10 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
     param y_pred: the model's predicted values.
     param gene_names: list of each gene name in the test set.
     
-    returns: Nothing
+    return: Nothing
     '''
    # Create csv file to hold prediction information.
-    with open(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
+    with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
             log.write(f'gene name, true RNAseq value, predicted RNAseq value, prediction Squared Error (SE)')
 
     for i in tqdm(range(len(gene_names))):
@@ -452,7 +574,7 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
         se = se_value[i]
         tv = y_true[i]
         pv = y_pred[i]
-        with open(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
+        with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
             #log.write('\n' f'{gn}, {tv[0]}, {pv[0]}, {se[0]}')
             log.write('\n' f'{gn}, {tv[0]}, {pv}, {se}')
 
@@ -479,7 +601,7 @@ def visualize_training_validation_distributions(y_train, y_val):
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
     sn.histplot(y_train, legend = False, palette= ['red'], bins = 50)
-    plt.savefig(save_directory + 'Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
     #plt.show()
 
     plt.close()
@@ -488,7 +610,7 @@ def visualize_training_validation_distributions(y_train, y_val):
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
     sn.histplot(y_val, legend = False, palette = ['yellow'], bins = 50)
-    plt.savefig(save_directory + 'Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
     #plt.show()
 
     training_RNAseq_dataframe = pd.Series(np.squeeze(y_train))
@@ -528,14 +650,14 @@ def visualize_training_validation_distributions(y_train, y_val):
         sn.set(font_scale=1)
         for i in ax.containers:
             ax.bar_label(i,)
-        plt.savefig(save_directory + 'xgboost_cross_patient_regression_' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
+        plt.savefig(save_directory + '/xgboost_cross_patient_regression_' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
 
     #plt.close()
     #plt.title('True RNAseq Values for the Test Set Genes')
     #plt.ylabel('count')
     #plt.xlabel('True values')
     #sn.histplot(y_true, legend = False, color = 'blue', bins = 50)
-    #plt.savefig(save_directory + 'Cross_Patient_Regression_test_set_true_RNAseq_values_-_histogram_plot.png')
+    #plt.savefig(save_directory + '/Cross_Patient_Regression_test_set_true_RNAseq_values_-_histogram_plot.png')
     #plt.show()
 
     #plt.close()
@@ -543,7 +665,7 @@ def visualize_training_validation_distributions(y_train, y_val):
     #plt.ylabel('count')
     #plt.xlabel('Predicted values')
     #sn.histplot(y_pred, legend = False, color = 'red', bins = 50)
-    #plt.savefig(save_directory + 'Cross_patient_Regression_test_set_predicted_RNAseq_values_-_histogram_plot.png')
+    #plt.savefig(save_directory + '/Cross_patient_Regression_test_set_predicted_RNAseq_values_-_histogram_plot.png')
     #plt.show()
 
     return None
@@ -570,7 +692,7 @@ def visualize_model_test_results(result_1, result_2, result_3):
     sn.set(font_scale=1)
     for i in ax.containers:
         ax.bar_label(i,)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_metric_results.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_metric_results.png', bbox_inches='tight')
     return None
 
 # This visualization can take portions of the predictions on the test set
@@ -592,7 +714,8 @@ def visualize_se_heatmap(se_values, gene_names_in_test_set):
     # The number and range of genes presented can be adjusted by slicing.
     genes_for_vis = se_values[:50]
     
-    ax = sn.heatmap(genes_for_vis.reshape(genes_for_vis.shape[0], 1), cmap = "YlGnBu", annot = True)
+    ax = sn.heatmap(genes_for_vis.reshape(genes_for_vis.shape[0], 1), 
+                    cmap = "YlGnBu", annot = True)
     
     # The number and range of genes presented can be adjusted by slicing as above.
     ax.set_yticklabels(gene_names_in_test_set[:50], rotation = 0)
@@ -600,14 +723,16 @@ def visualize_se_heatmap(se_values, gene_names_in_test_set):
     ax.tick_params(left=True, bottom=False)
     ax.set_xticklabels([])
     #ax.set_yticks(np.arange(len(gene_names_in_test_set[:10])), labels = gene_names_in_test_set[:10], rotation = 0)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png', 
+                bbox_inches='tight')
     #plt.show()
     
     return None
 
 def load_csv_and_create_dataframes():
     
-    prediction_dataframe = pd.read_csv(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision='round_trip')
+    prediction_dataframe = pd.read_csv(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision='round_trip')
     
     # Define gene expression catagories for analysis.
 
@@ -639,7 +764,9 @@ def visualize_testing_distributions(all_zero_true_expression, true_expression_be
     for i in ax.containers:
         ax.bar_label(i,)
 
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', 
+                bbox_inches='tight')
     
     return None
 
@@ -664,7 +791,7 @@ def visualize_testing_set_mse_by_catagory(test_set_MSE, all_zero_true_expression
         ax.bar_label(i,)
     
     
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', bbox_inches='tight')
     
     return None
 
@@ -684,7 +811,9 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.ylabel('SE')
     plt.xlabel('Gene index in test set')
     plt.scatter(np.arange(prediction_ses.shape[0]), prediction_ses)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_mse_values.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_mse_values.png', 
+                bbox_inches='tight')
     #plt.show()
 
     plt.close()
@@ -693,7 +822,9 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('Squared Error')
     sn.histplot(prediction_ses, legend = False, palette = ['orange'], bins = 50)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_mse_values_-_histogram_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_mse_values_-_histogram_plot.png', 
+                bbox_inches='tight')
     #plt.show()
 
 
@@ -703,7 +834,9 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('True values')
     sn.histplot(y_true, legend = False, palette = ['red'], bins = 50)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_true_RNAseq_values_-_histogram_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_true_RNAseq_values_-_histogram_plot.png', 
+                bbox_inches='tight')
     #plt.show()
 
     plt.close()
@@ -712,7 +845,9 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('Predicted values')
     sn.histplot(y_pred, legend = False, palette = ['green'], bins = 50)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', 
+                bbox_inches='tight')
     #plt.show()
 
     return None
@@ -738,7 +873,9 @@ def visualize_test_obs_pred(y_true, y_pred):
     plt.xlim(0, 15)
     plt.xlim(0, 15)
     plt.axis('square')
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_observed_vs_predicted.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted.png', 
+                bbox_inches='tight')
     #plt.show()
 
     # Create dataframe of true and predicted values for visualization.
@@ -749,19 +886,28 @@ def visualize_test_obs_pred(y_true, y_pred):
     plt.close()
     #plt.title("RNAseq Observed Values vs Predicted Values Joint Plot")
     sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df)
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png', 
+                bbox_inches='tight')
     #plt.show()
 
     # Kernal Density Estimation joint plot
     plt.close()
     #plt.title("RNAseq Observed Values vs Predicted Values KDE Joint Plot")
     sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df, kind = 'kde')
-    plt.savefig(save_directory + 'xgboost_cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', 
+                bbox_inches='tight')
     #plt.show()
 
     return None
 
-def visualize_aggregated_input_profiles(test_dataset, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15, prediction_dataframe):
+def visualize_aggregated_input_profiles(test_dataset, 
+                                        all_zero_true_expression, 
+                                        true_expression_between_0_and_5, 
+                                        true_expression_between_5_and_10, 
+                                        true_expression_between_10_and_15, 
+                                        prediction_dataframe):
     '''
     Creates aggregated heatmap visualizations for genes within the predefined
     true expression value groups. 
@@ -812,10 +958,10 @@ def visualize_aggregated_input_profiles(test_dataset, all_zero_true_expression, 
         ax = sn.heatmap(mean_gene_vals.T, cbar = False, annot = True, fmt='.7f', cmap = 'OrRd', annot_kws={'rotation':90})
         ax.set_xlabel('bins')
         ax.set_yticks([0.5, 1.5, 2.5, 3.5])
-        ax.set_yticklabels(['H3K27ac','CTCF','ATAC','RNA Pol II'])
+        ax.set_yticklabels(['H3K27Ac','CTCF','ATAC','RNPPII'])
         ax.set_ylabel('epigenetic features')
         ax.text(x = 0.5, y = 1.04, s = f'Feature values after standardization.', fontsize = 10, ha = 'center', va = 'bottom', transform = ax.transAxes)
-        plt.savefig(save_directory + heatmap_names[h] + '_seaborn.png', bbox_inches='tight')
+        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.png', bbox_inches='tight')
         #plt.show()
 
         # Use seaborn to plot
@@ -892,7 +1038,7 @@ def superenhancer_associated_genes_perturbation(model, X_test, Y_test, gene_name
     SCC_results.append(test_SCC)
     R2_results.append(test_R2)
 
-    with open(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write(f'Perturbation Test PCC {test_PCC},Perturbation Test SCC {test_SCC},Perturbation Test R2 Score: {test_R2}')
         
     print('PCC results (after perturbation),',PCC_results[0])
@@ -956,7 +1102,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
 
     # Processing data for patient 2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
 
     # Call train_model() to train the model
     print("Training model...")
@@ -997,7 +1143,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
 
     now = datetime.datetime.now()
     # Script log file.
-    with open(save_directory + 'xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')
      
         log.write(f'CURRENT COUNT: {count},learning rate: {learning_rates},n estimator: {n_estimators}, max depth: {max_depths},')
@@ -1005,7 +1151,37 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
         log.write(f'Val PCC: {max_val_pcc},Val SCC: {max_val_scc}, Val R2: {max_val_r2_score},')
         log.write(f'Test PCC: {test_PCC},Test SCC: {test_SCC}, Test R2: {test_R2}')
 
-    gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes)
+        
+
+    # Calculate mean and sum feature importances from trained model    
+    h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
+           rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
+           ctcf_sum_importances, rnapii_sum_importances = get_feature_importances(model)
+    
+    
+    print('*'*25)
+    print("Feature importances...")
+    print('*'*25)
+    print('Mean')
+    print(f"H3K27Ac Mean Importance,{h3k27ac_mean_importances}")
+    print(f"ATAC Mean Importance,{atac_mean_importances}")
+    print(f"CTCF Mean Importance,{ctcf_mean_importances}")
+    print(f"RNAPII Mean Importance,{rnapii_mean_importances}")
+    print('*'*25)
+    print('Sum')
+    print(f"H3K27Ac Sum Importance,{h3k27ac_sum_importances}")
+    print(f"ATAC Sum Importance,{atac_sum_importances}")
+    print(f"CTCF Sum Importance,{ctcf_sum_importances}")
+    print(f"RNAPII Sum Importance,{rnapii_sum_importances}")
+    print('*'*25)
+    
+    # Feature importance visualizations
+    visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
+           rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
+           ctcf_sum_importances, rnapii_sum_importances)
+
+    
+    gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes, test_set_indices)
     
     ##### NOTE Perturbation of gene features created during superenhancer analysis. #####
     ##### NOTE This function should be commented out if perturbation of genes is not desired. #####
