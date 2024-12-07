@@ -152,19 +152,31 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
 
                 
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", X_train, allow_pickle=True)
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", X_val, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", 
+                X_train, 
+                allow_pickle = True)
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", 
+                X_val, 
+                allow_pickle = True)
         
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", Y_train, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", Y_val, allow_pickle=True)
+        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", 
+                Y_train, 
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", 
+                Y_val, 
+                allow_pickle = True)
         
     
     else:
-        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
+        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
         
-        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
+        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
         
     
         gene_dict = gene_dict
@@ -320,16 +332,16 @@ def get_data_patient_2(file_path, indices, gene_dict,
 
         np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", 
                 X_test, 
-                allow_pickle=True)
+                allow_pickle = True)
         np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", 
                 Y_test, 
                 allow_pickle=True)
 
     else:
         X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
-                         allow_pickle=True)
+                         allow_pickle = True)
         Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
-                         allow_pickle=True)
+                         allow_pickle = True)
 
         gene_dict = gene_dict
         num_genes = num_genes
@@ -581,7 +593,9 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
     return: Nothing
     '''
    # Create csv file to hold prediction information.
-    with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
+    with open(save_directory + 
+              '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') \
+    as log:
             log.write(f'gene name, true RNAseq value, predicted RNAseq value, prediction Squared Error (SE)')
 
     for i in tqdm(range(len(gene_names))):
@@ -590,7 +604,9 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
         se = se_value[i]
         tv = y_true[i]
         pv = y_pred[i]
-        with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
+        with open(save_directory + 
+                  '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') \
+        as log:
             #log.write('\n' f'{gn}, {tv[0]}, {pv[0]}, {se[0]}')
             log.write('\n' f'{gn}, {tv[0]}, {pv}, {se}')
 
@@ -604,7 +620,7 @@ def visualize_training_validation_distributions(y_train, y_val):
     param y_train: the true (observed) RNAseq values for the test set.
     param y_val: the true (observed) RNAseq values for the validation set.
 
-    returns: Nothing.
+    return: Nothing
     '''
 
     # Build dataframe for visualization.
@@ -644,45 +660,46 @@ def visualize_training_validation_distributions(y_train, y_val):
     validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
     validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
 
-    training_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : ["all zero", "between 0_and 5", 
-                                                                    "between 5 and 10", "between 10 and 15" ],
-                                            "count": [len(training_all_zero_true_expression), len(training_true_expression_between_0_and_5), 
-                                                     len(training_true_expression_between_5_and_10), len(training_true_expression_between_10_and_15)]})
-    validation_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : ["all zero", "between 0 and 5", 
-                                                                        "between 5 and 10", "between 10 and 15" ],
-                                            "count": [len(validation_all_zero_true_expression), len(validation_true_expression_between_0_and_5), 
-                                                     len(validation_true_expression_between_5_and_10), len(validation_true_expression_between_10_and_15)]})
+    training_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : 
+                                                         ["all zero", 
+                                                          "between 0_and 5",
+                                                          "between 5 and 10", 
+                                                          "between 10 and 15" ],
+                                                         "count": [len(training_all_zero_true_expression),
+                                                                   len(training_true_expression_between_0_and_5), 
+                                                                   len(training_true_expression_between_5_and_10),
+                                                                   len(training_true_expression_between_10_and_15)]})
+    
+    validation_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : 
+                                                           ["all zero", 
+                                                            "between 0 and 5",
+                                                            "between 5 and 10", 
+                                                            "between 10 and 15" ],
+                                                           "count": [len(validation_all_zero_true_expression),
+                                                                     len(validation_true_expression_between_0_and_5), 
+                                                                     len(validation_true_expression_between_5_and_10),
+                                                                     len(validation_true_expression_between_10_and_15)]})
 
-    dataframes = [training_expression_counts_dataframe, validation_expression_counts_dataframe]
+    dataframes = [training_expression_counts_dataframe, 
+                  validation_expression_counts_dataframe]
     dataset_names = ['Training Set', 'Validation Set']
     # Visualize number of genes in each catagory.
     for l in range(len(dataframes)):
         plt.close()
         sn.set_theme(style = 'whitegrid')
         fig, ax = plt.subplots(figsize = (8, 5))
-        ax = sn.barplot(data = dataframes[l], x = "expression catagory after log(2) transformation", y = "count")
+        ax = sn.barplot(data = dataframes[l], 
+                        x = "expression catagory after log(2) transformation", 
+                        y = "count")
         ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
         ax.set(title = f'{dataset_names[l]} - XGBoost Cross Patient Regression Expression Catagory Counts')
         sn.set(font_scale=1)
         for i in ax.containers:
             ax.bar_label(i,)
-        plt.savefig(save_directory + '/xgboost_cross_patient_regression_' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
-
-    #plt.close()
-    #plt.title('True RNAseq Values for the Test Set Genes')
-    #plt.ylabel('count')
-    #plt.xlabel('True values')
-    #sn.histplot(y_true, legend = False, color = 'blue', bins = 50)
-    #plt.savefig(save_directory + '/Cross_Patient_Regression_test_set_true_RNAseq_values_-_histogram_plot.png')
-    #plt.show()
-
-    #plt.close()
-    #plt.title('Predicted RNAseq Values for the Test Set Genes')
-    #plt.ylabel('count')
-    #plt.xlabel('Predicted values')
-    #sn.histplot(y_pred, legend = False, color = 'red', bins = 50)
-    #plt.savefig(save_directory + '/Cross_patient_Regression_test_set_predicted_RNAseq_values_-_histogram_plot.png')
-    #plt.show()
+        plt.savefig(save_directory + 
+                    '/xgboost_cross_patient_regression_' + dataset_names[l] + 
+                    '_Expression_Catagory_Counts.png',
+                    bbox_inches='tight')
 
     return None
 
@@ -758,23 +775,39 @@ def load_csv_and_create_dataframes():
     true_expression_between_10_and_15 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] >= 10) & (prediction_dataframe[' true RNAseq value'] <= 15)]
     #print(len(all_zero_expression) + len(between_0_and_5) + len(between_5_and_10) + len(between_10_and_15))
     
-    return prediction_dataframe, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15
+    return prediction_dataframe, \
+           all_zero_true_expression, \
+           true_expression_between_0_and_5, \
+           true_expression_between_5_and_10, \
+           true_expression_between_10_and_15
 
 
-def visualize_testing_distributions(all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15):
+def visualize_testing_distributions(all_zero_true_expression, 
+                                    true_expression_between_0_and_5, 
+                                    true_expression_between_5_and_10, 
+                                    true_expression_between_10_and_15):
+    
     # Create dataframe for catagory counts. The dataframe will be used for visualization.
-    expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : ["all zero", "between 0 and 5", 
-                                                                    "between 5 and 10", "between 10 and 15" ],
-                                            "count": [len(all_zero_true_expression), len(true_expression_between_0_and_5), 
-                                                     len(true_expression_between_5_and_10), len(true_expression_between_10_and_15)]})
+    expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : 
+                                                ["all zero", 
+                                                 "between 0 and 5",
+                                                 "between 5 and 10", 
+                                                 "between 10 and 15" ],
+                                                "count": [len(all_zero_true_expression), 
+                                                          len(true_expression_between_0_and_5),
+                                                          len(true_expression_between_5_and_10),
+                                                          len(true_expression_between_10_and_15)]})
 
     # Visualize number of genes in each catagory.
     plt.close()
     sn.set_theme(style = 'whitegrid')
     fig, ax = plt.subplots(figsize = (8, 5))
 
-    ax = sn.barplot(data = expression_counts_dataframe, x = "expression catagory after log(2) transform", y = "count")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
+    ax = sn.barplot(data = expression_counts_dataframe, 
+                    x = "expression catagory after log(2) transform", 
+                    y = "count")
+    ax.set_xticklabels(ax.get_xticklabels(), 
+                       rotation = "45")
     ax.set(title = 'Testing Set - XGBoost Cross Patient Regression Expression Catagory Counts')
     sn.set(font_scale=1)
     for i in ax.containers:
@@ -786,28 +819,40 @@ def visualize_testing_distributions(all_zero_true_expression, true_expression_be
     
     return None
 
-def visualize_testing_set_mse_by_catagory(test_set_MSE, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15):
+def visualize_testing_set_mse_by_catagory(test_set_MSE, 
+                                          all_zero_true_expression, 
+                                          true_expression_between_0_and_5, 
+                                          true_expression_between_5_and_10, 
+                                          true_expression_between_10_and_15):
+    
     # Create dataframe for the calculation of the mean SE. 
     # The dataframe will be used for visualization.
-    expression_mean_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : ["all zero", "between 0 and 5", 
-                                                                    "between 5 and 10", "between 10 and 15" ],
-                                          "mean squared error (MSE)" : [all_zero_true_expression[' prediction Squared Error (SE)'].mean(),
-                                                    true_expression_between_0_and_5[' prediction Squared Error (SE)'].mean(),
-                                                    true_expression_between_5_and_10[' prediction Squared Error (SE)'].mean(),
-                                                    true_expression_between_10_and_15[' prediction Squared Error (SE)'].mean()]})
+    expression_mean_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : 
+                                              ["all zero", 
+                                               "between 0 and 5",
+                                               "between 5 and 10", 
+                                               "between 10 and 15" ],
+                                              "mean squared error (MSE)" : 
+                                              [all_zero_true_expression[' prediction Squared Error (SE)'].mean(),
+                                               true_expression_between_0_and_5[' prediction Squared Error (SE)'].mean(),
+                                               true_expression_between_5_and_10[' prediction Squared Error (SE)'].mean(),
+                                               true_expression_between_10_and_15[' prediction Squared Error (SE)'].mean()]})
+    
     plt.close()
     sn.set_theme(style = 'whitegrid')
     fig, ax = plt.subplots(figsize = (8, 5))
-    ax = sn.barplot(data = expression_mean_dataframe, x = "expression catagory after log(2) transform", y = "mean squared error (MSE)")
+    ax = sn.barplot(data = expression_mean_dataframe, 
+                    x = "expression catagory after log(2) transform", 
+                    y = "mean squared error (MSE)")
     ax.set(title = 'Testing Set - XGBoost Cross Patient Regression MSE Per Expression Catagory')
     ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
     ax.axhline(test_set_MSE, label = f'MSE of entire test set : {test_set_MSE}')
     plt.legend(loc = 'upper left')
     for i in ax.containers:
-        ax.bar_label(i,)
-    
-    
-    plt.savefig(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', bbox_inches='tight')
+        ax.bar_label(i,)   
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', 
+                bbox_inches='tight')
     
     return None
 
@@ -876,7 +921,7 @@ def visualize_test_obs_pred(y_true, y_pred):
     param y_true: the true (observed) RNAseq values.
     param y_pred: the model's predicted values.
 
-    returns: Nothing
+    return: Nothing
     
     '''
     plt.close()
@@ -901,7 +946,9 @@ def visualize_test_obs_pred(y_true, y_pred):
     # Regular joint plot
     plt.close()
     #plt.title("RNAseq Observed Values vs Predicted Values Joint Plot")
-    sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df)
+    sn.jointplot(x = 'True Values', 
+                 y = 'Predicted Values', 
+                 data = df)
     plt.savefig(save_directory + 
                 '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png', 
                 bbox_inches='tight')
@@ -910,7 +957,10 @@ def visualize_test_obs_pred(y_true, y_pred):
     # Kernal Density Estimation joint plot
     plt.close()
     #plt.title("RNAseq Observed Values vs Predicted Values KDE Joint Plot")
-    sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df, kind = 'kde')
+    sn.jointplot(x = 'True Values', 
+                 y = 'Predicted Values', 
+                 data = df, 
+                 kind = 'kde')
     plt.savefig(save_directory + 
                 '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', 
                 bbox_inches='tight')
