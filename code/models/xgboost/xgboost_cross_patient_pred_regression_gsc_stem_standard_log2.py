@@ -484,11 +484,10 @@ def get_feature_importances(model):
            ctcf_sum_importances, rnapii_sum_importances
 
 
-def visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
-           rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
-           ctcf_sum_importances, rnapii_sum_importances):
-    sn.set(style ='white', font_scale = 1.5)
-    fig, ax = plt.subplots(figsize=(9, 2.5))
+def visualize_feature_importances_sums(h3k27ac_mean_importances, atac_mean_importances,
+                                  ctcf_mean_importances, rnapii_mean_importances, 
+                                  h3k27ac_sum_importances, atac_sum_importances,
+                                  ctcf_sum_importances, rnapii_sum_importances):
     
     importance_sums = pd.DataFrame({'metric' : ['h3k27ac_sum_importances', 
                                                 'atac_sum_importances', 
@@ -498,12 +497,28 @@ def visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importance
                                               atac_sum_importances, 
                                               ctcf_sum_importances, 
                                               rnapii_sum_importances]})
+
     
-    #plot_pcc = sns.barplot(data = MLP_perturbation_PCC, palette = ['turquoise', 'grey', 'orange', 'tan', 'coral',     'deepskyblue', 'yellowgreen'], x = 'value', y = 'model', errorbar=('sd'), capsize = 0.2)
-    plot_pcc = sn.barplot(data = importance_sums, palette = ['red', 'red', 'red', 'red'], 
-                          x = 'value', y = 'metric')
-    #plot_pcc.set_xticklabels(plot_pcc.get_xticklabels(), rotation = -45, horizontalalignment='left')
-    plot_pcc.set_yticklabels(plot_pcc.get_yticklabels())
+    sn.set(style ='white', font_scale = 1.5)
+    fig, ax = plt.subplots(figsize=(9, 2.5))
+    
+    feature_importance_plot = sn.barplot(data = importance_sums, 
+                          palette = ['red', 'red', 'red', 'red'], 
+                          x = 'value', 
+                          y = 'metric')
+
+    feature_importance_plot.set_yticklabels(feature_importance_plot.get_yticklabels())
+    plt.tick_params(axis = 'both', 
+                which = 'major', 
+                labelbottom = True, 
+                bottom = True, 
+                top = False, 
+                labeltop = False, 
+                left = True)
+    sn.despine()
+    ax.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    ax.set_xticklabels(['0.0', '', '0.2', '', '0.4', '', '0.6', '', '0.8', '', '1.0'])
+
     plt.xlabel('Sums of importance values over bins')
     ax.set_yticklabels(['H3K27Ac importance sum', 
                         'CTCF importance sum', 
@@ -511,19 +526,78 @@ def visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importance
                         'RNAPII importance sum'])
     plt.ylabel('')
     plt.xlim(0.0, 1.0)
-    #plt.legend(bbox_to_anchor = (1.02, 1), borderaxespad = 0)
-    #for a in ax.containers:
-    #ax.bar_label(ax.containers[0], fmt='%.3f', color='black', label_type='edge', xytext = (0))
     for i in [0, 1, 2, 3]:
-        p = plot_pcc.patches[i]
-        print(p)
-        plot_pcc.annotate("%.6f" % p.get_width(), 
-                          xy=(p.get_width(), p.get_y() + p.get_height() / 2), 
-                          color='black', xytext = (30, 0), 
-                          textcoords='offset points', ha="left", va="center")
+        p = feature_importance_plot.patches[i]
+        feature_importance_plot.annotate("%.6f" % p.get_width(), 
+                          xy = (p.get_width(), 
+                                p.get_y() + 
+                                p.get_height() / 2), 
+                          color = 'black', 
+                          xytext = (30, 0), 
+                          textcoords = 'offset points', 
+                          ha = 'left', va = 'center')
+        
     plt.savefig(save_directory + 
                 '/xgboost_sums_of_feature_importances.png', 
                 bbox_inches = 'tight')
+    
+    return None
+
+def visualize_feature_importances_means(h3k27ac_mean_importances, atac_mean_importances,
+                                  ctcf_mean_importances, rnapii_mean_importances, 
+                                  h3k27ac_sum_importances, atac_sum_importances,
+                                  ctcf_sum_importances, rnapii_sum_importances):
+
+    importance_means = pd.DataFrame({'metric' : ['h3k27ac_mean_importances', 
+                                                'atac_mean_importances', 
+                                                'ctcf_mean_importances', 
+                                                'rnapii_mean_importances'],
+                                   'value' : [h3k27ac_mean_importances, 
+                                              atac_mean_importances, 
+                                              ctcf_mean_importances, 
+                                              rnapii_mean_importances]})
+    
+    sn.set(style = 'white', font_scale = 1.5)
+    fig, ax = plt.subplots(figsize = (9, 2.5))
+    importance_plot = sn.barplot(data = importance_means, 
+                       palette = ['springgreen', 'springgreen', 'springgreen', 'springgreen'], 
+                       x = 'value', 
+                       y = 'metric')
+    
+    importance_plot.set_yticklabels(importance_plot.get_yticklabels())
+    plt.tick_params(axis = 'both', 
+                which = 'major', 
+                labelbottom = True, 
+                bottom = True, 
+                top = False, 
+                labeltop = False, 
+                left = True)
+    plt.xlabel('mean importance values over bins')
+    #ax.set_xticks([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+    ax.set_xticklabels(['0.0', '', '0.005', '', '0.01', '', '0.015', '', '0.02'])
+    ax.set_yticklabels(['H3K27Ac importance mean', 
+                    'CTCF importance mean', 
+                    'ATAC importance mean', 
+                    'RNAPII importance mean'])
+    sn.despine()
+    plt.ylabel('')
+    plt.xlim(0.000, 0.02)
+    for i in [0, 1, 2, 3]:
+        p = importance_plot.patches[i]
+        importance_plot.annotate("%.6f" % p.get_width(), 
+                      xy=(p.get_width(), 
+                          p.get_y() + 
+                          p.get_height() / 2), 
+                      color='black', 
+                      xytext = (30, 0), 
+                      textcoords = 'offset points', 
+                      ha= 'left', 
+                      va = 'center')
+
+    plt.savefig(save_directory + 
+                '/xgboost_means_of_feature_importances.png', 
+                bbox_inches = 'tight')
+    
     
     return None
 
@@ -1242,7 +1316,11 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     print('*'*25)
     
     # Feature importance visualizations
-    visualize_feature_importances(h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
+    visualize_feature_importances_sums(h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
+           rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
+           ctcf_sum_importances, rnapii_sum_importances)
+
+    visualize_feature_importances_means(h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
            rnapii_mean_importances, h3k27ac_sum_importances, atac_sum_importances, \
            ctcf_sum_importances, rnapii_sum_importances)
 
