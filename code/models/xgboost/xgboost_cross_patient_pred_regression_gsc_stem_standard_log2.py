@@ -1188,7 +1188,12 @@ def superenhancer_associated_genes_perturbation(model, X_test, Y_test, gene_name
     return PCC_results, SCC_results, R2_results, X_test
 
 
-def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates, n_estimators, max_depths, min_child_weight, colsample_bytree, subsample, gamma):
+def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, 
+         val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, 
+         gene_dict, num_genes, count, 
+         learning_rates, n_estimators, max_depths, 
+         min_child_weight, colsample_bytree, subsample, gamma):
+    
     # Save directory - path where result files and figures are saved
     global save_directory
 
@@ -1204,26 +1209,19 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
         print('Using the default save directory:')
         print('./cross_patient_regression_using_xgboost_results_and_figures')
         print('since a directory was not provided.')
-        os.makedirs(save_directory, exist_ok=True)
+        os.makedirs(save_directory, exist_ok = True)
     
     # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
     validation = False
     
     # Get file path from command line
+    # NOTE: file_path_1 is the data file for training and validating the model.    
+    # NOTE: file_path_2 is the datafile for testing the model.
+
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
-    
-    # NOTE: file_path_1 is the data file for training and validating the model.
-    #file_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    #file_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    # NOTE file_path_2 is the datafile for testing the model.
-    #file_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    #file_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    #indices = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle.npy"
-    
+        
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
@@ -1239,16 +1237,34 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
 
 
     # Processing data for patient 1 file to produce train and validation sets.
-    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
+    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                              indices, 
+                                                                              gene_dict, 
+                                                                              num_genes, 
+                                                                              preprocess = preprocess_bool, 
+                                                                              validation = validation_bool)
 
     # Processing data for patient 2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, 
+                                                                                indices, 
+                                                                                gene_dict, 
+                                                                                num_genes, 
+                                                                                preprocess = preprocess_bool)
 
     # Call train_model() to train the model
     print("Training model...")
     
     if validation_bool == True:
-        model, PCC, SCC, R2  = train_model(X_train, X_val, Y_train, Y_val, validation=validation_bool, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths, min_child_weight = min_child_weight, colsample_bytree = colsample_bytree, subsample = subsample, gamma = gamma, count = count)
+        model, PCC, SCC, R2  = train_model(X_train, X_val, Y_train, Y_val, 
+                                           validation=validation_bool, 
+                                           learning_rates = learning_rates, 
+                                           n_estimators = n_estimators, 
+                                           max_depths = max_depths, 
+                                           min_child_weight = min_child_weight, 
+                                           colsample_bytree = colsample_bytree, 
+                                           subsample = subsample, 
+                                           gamma = gamma, 
+                                           count = count)
 
         max_val_pcc = PCC
         max_val_r2_score = R2
@@ -1256,7 +1272,16 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
         
 
     else:
-        model = train_model(X_train, X_val, Y_train, Y_val, validation=validation_bool, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths, min_child_weight = min_child_weight, colsample_bytree = colsample_bytree, subsample = subsample, gamma = gamma, count = count)
+        model = train_model(X_train, X_val, Y_train, Y_val, 
+                            validation=validation_bool, 
+                            learning_rates = learning_rates, 
+                            n_estimators = n_estimators, 
+                            max_depths = max_depths, 
+                            min_child_weight = min_child_weight, 
+                            colsample_bytree = colsample_bytree, 
+                            subsample = subsample, 
+                            gamma = gamma, count = count)
+        
         max_val_pcc = 'TRAINING SET ONLY'
         max_val_r2_score = 'TRAINING SET ONLY'
         max_val_scc = 'TRAINING SET ONLY'
@@ -1267,12 +1292,27 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     val_scc_dict[count] = max_val_scc
 
 
-    print("CURRENT COUNT:", count, "\n learning rate: ", learning_rates, "\n n estimator: ", n_estimators, "\n max depth: ", max_depths,"\n Val PCC: ", max_val_pcc, "\n Val SCC: ", max_val_scc, "\n Val R2: ", max_val_r2_score)        
+    print("CURRENT COUNT:", count,
+          "\n learning rate: ", learning_rates,
+          "\n n estimator: ", n_estimators,
+          "\n max depth: ", max_depths,
+          "\n Val PCC: ", max_val_pcc,
+          "\n Val SCC: ", max_val_scc,
+          "\n Val R2: ", max_val_r2_score)        
 
     print('*'*25)
     print("Evaluating model...")
     print('*'*25)
-    test_PCC, test_SCC, test_R2  = test_model(model, X_test, Y_test, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths, min_child_weight = min_child_weight, colsample_bytree = colsample_bytree, subsample = subsample, gamma = gamma, count = count)
+    
+    test_PCC, test_SCC, test_R2  = test_model(model, X_test, Y_test, 
+                                              learning_rates = learning_rates, 
+                                              n_estimators = n_estimators, 
+                                              max_depths = max_depths, 
+                                              min_child_weight = min_child_weight, 
+                                              colsample_bytree = colsample_bytree, 
+                                              subsample = subsample, 
+                                              gamma = gamma, 
+                                              count = count)
     print("Test results:")
     print(f"PCC,{test_PCC}")
     print(f"SCC,{test_SCC}")
@@ -1283,9 +1323,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
 
     now = datetime.datetime.now()
     # Script log file.
-    with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + 
+              '/xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')
-     
         log.write(f'CURRENT COUNT: {count},learning rate: {learning_rates},n estimator: {n_estimators}, max depth: {max_depths},')
         log.write(f'min child weight: {min_child_weight},column sample by tree: {colsample_bytree},subsample: {subsample}, gamma: {gamma},')
         log.write(f'Val PCC: {max_val_pcc},Val SCC: {max_val_scc}, Val R2: {max_val_r2_score},')
@@ -1331,7 +1371,14 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     ##### NOTE This function should be commented out if perturbation of genes is not desired. #####
     ##### NOTE X_test will be modified for the desired genes and then evaluated. #####
     ##### NOTE This will cause all downstream analysis to be done with the perturbed genes. #####
-    #PCC_results, SCC_results, R2_results, X_test = superenhancer_associated_genes_perturbation(model, X_test, Y_test, gene_names_in_test_set, learning_rates, n_estimators, max_depths, min_child_weight, colsample_bytree, subsample, gamma, count)
+    PCC_results, SCC_results, R2_results, X_test = superenhancer_associated_genes_perturbation(model, 
+                                                                                               X_test, Y_test, 
+                                                                                               gene_names_in_test_set, 
+                                                                                               learning_rates, 
+                                                                                               n_estimators, max_depths, 
+                                                                                               min_child_weight, 
+                                                                                               colsample_bytree, subsample, 
+                                                                                               gamma, count)
     
     
     Y_pred = make_prediction(model, X_test)    
