@@ -1202,7 +1202,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
         save_directory = sys.argv[4]
         # Create the given directory
         print(f'Using {save_directory} as the save directory for experiment output.')
-        os.makedirs(save_directory, exist_ok=True)
+        os.makedirs(save_directory, exist_ok = True)
 
     else:
         save_directory = './cross_patient_regression_using_xgboost_results_and_figures/'
@@ -1371,14 +1371,14 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     ##### NOTE This function should be commented out if perturbation of genes is not desired. #####
     ##### NOTE X_test will be modified for the desired genes and then evaluated. #####
     ##### NOTE This will cause all downstream analysis to be done with the perturbed genes. #####
-    PCC_results, SCC_results, R2_results, X_test = superenhancer_associated_genes_perturbation(model, 
-                                                                                               X_test, Y_test, 
-                                                                                               gene_names_in_test_set, 
-                                                                                               learning_rates, 
-                                                                                               n_estimators, max_depths, 
-                                                                                               min_child_weight, 
-                                                                                               colsample_bytree, subsample, 
-                                                                                               gamma, count)
+    #PCC_results, SCC_results, R2_results, X_test = superenhancer_associated_genes_perturbation(model, 
+    #                                                                                           X_test, Y_test, 
+    #                                                                                           gene_names_in_test_set, 
+    #                                                                                           learning_rates, 
+    #                                                                                           n_estimators, max_depths, 
+    #                                                                                           min_child_weight, 
+    #                                                                                           colsample_bytree, subsample, 
+    #                                                                                           gamma, count)
     
     
     Y_pred = make_prediction(model, X_test)    
