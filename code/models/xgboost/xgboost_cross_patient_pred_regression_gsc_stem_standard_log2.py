@@ -378,7 +378,7 @@ def train_model(X_train, X_val, Y_train, Y_val, validation,
     """
 
     #random_state = count
-    random_state = 10
+    random_state = 2
     
     # Set random seed
     reset_random_seeds(random_state)
@@ -1122,71 +1122,6 @@ def visualize_aggregated_input_profiles(test_dataset,
 
     return None
 
-def superenhancer_associated_genes_perturbation(model, X_test, Y_test, gene_names_in_test_set, learning_rates, n_estimators, max_depths, min_child_weight, colsample_bytree, subsample, gamma, count):    
-    colnames = ['gene name']
-    #superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_associated_genes_in_predictions_for_perturbation.csv').drop(['Unnamed: 0'],axis=1)
-    
-    ## Load list of randomly chosen genes from test set to perturb signals.
-    #superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_perturbation_comparison_random_sample_group.csv').drop(['Unnamed: 0'],axis=1)
-    
-    #superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_associated_genes_in_predictions_for_perturbation_list_2.csv').drop(['Unnamed: 0'],axis=1)
-    
-    ## Load list of randomly chosen genes from test set to perturb signals.
-    superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_perturbation_comparison_random_sample_group_list_2.csv').drop(['Unnamed: 0'],axis=1)    
-
-    # Create empty list to hold indexes of genes to be perturbed.
-    superenhancer_indexes_in_test_set = []
-
-    # Create list of gene names to be perturbed.
-    for l in superenhancer_dataframe['gene name'].tolist():
-        # Get the gene index and name for all genes in test set.
-        for i, j in enumerate(gene_names_in_test_set):
-            # Where the gene name matches add the gene's index to the list of genes to be perturbed.
-            if l == j:
-                superenhancer_indexes_in_test_set.append(i)
-
-    # Collect evalueation results            
-    PCC_results = []
-    SCC_results = []
-    R2_results = []
-    
-    #print('*'*25)
-    #print("Evaluating model...")
-    #print('*'*25)
-    #results  = model.evaluate(X_test, Y_test, batch_size=batch_size)
-    #print("Test results:")
-    #print(f"loss,{results[0]}")
-    #print(f"PCC,{results[1]}")
-    #print(f"R2,{results[2]}")
-    #print(f"SCC,{results[3]}")
-    #print('*'*25)
-    
-    #loss_results.append(results[0])
-    #PCC_results.append(results[1])
-    #SCC_results.append(results[3])
-    #R2_results.append(results[2])
-    
-    # Change the apppropriate gene values to 0.
-    for n in superenhancer_indexes_in_test_set:
-        X_test[n,:,0] = 0.0 # Perturb H3K27ac signals only
-        #X_test[n] = 0.0 # Perturb all gene signals
-        
-    # Evaluate the test set with the perturbed gene signals in place.    
-    test_PCC, test_SCC, test_R2  = test_model(model, X_test, Y_test, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths, min_child_weight = min_child_weight, colsample_bytree = colsample_bytree, subsample = subsample, gamma = gamma, count = count)
-
-    PCC_results.append(test_PCC)
-    SCC_results.append(test_SCC)
-    R2_results.append(test_R2)
-
-    with open(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
-        log.write(f'Perturbation Test PCC {test_PCC},Perturbation Test SCC {test_SCC},Perturbation Test R2 Score: {test_R2}')
-        
-    print('PCC results (after perturbation),',PCC_results[0])
-    print('SCC results (after perturbation),',SCC_results[0])
-    print('R2 results (after perturbation),',R2_results[0])
-    
-    return PCC_results, SCC_results, R2_results, X_test
-
 
 def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, 
          val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, 
@@ -1366,19 +1301,6 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
     
     gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes, test_set_indices)
-    
-    ##### NOTE Perturbation of gene features created during superenhancer analysis. #####
-    ##### NOTE This function should be commented out if perturbation of genes is not desired. #####
-    ##### NOTE X_test will be modified for the desired genes and then evaluated. #####
-    ##### NOTE This will cause all downstream analysis to be done with the perturbed genes. #####
-    #PCC_results, SCC_results, R2_results, X_test = superenhancer_associated_genes_perturbation(model, 
-    #                                                                                           X_test, Y_test, 
-    #                                                                                           gene_names_in_test_set, 
-    #                                                                                           learning_rates, 
-    #                                                                                           n_estimators, max_depths, 
-    #                                                                                           min_child_weight, 
-    #                                                                                           colsample_bytree, subsample, 
-    #                                                                                           gamma, count)
     
     
     Y_pred = make_prediction(model, X_test)    
