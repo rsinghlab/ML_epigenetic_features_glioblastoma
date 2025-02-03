@@ -1,7 +1,9 @@
 ## Machine learning on multiple epigenetic features reveals H3K27Ac as a driver of gene expression prediction across patients with glioblastoma.
 
 ## Datasets:
-Two patient epigenetic marker files are provided in the [data](data) folder. Specifically, the latest versions of these GSC measurements are located in the [latest_versions_of_all_raw](data/latest_versions_of_all_raw) subfolder. Additionally, the [ind_shuffle.npy](data/ind_shuffle.npy) file is provided. This file was used to create consistent dataset splits for train, validation, and test sets.
+Our study's two patient epigenetic marker files are provided in the [data](data) folder. Specifically, the latest versions of these GSC measurements are located in the [latest_versions_of_all_raw](data/latest_versions_of_all_raw) subfolder. Additionally, the [ind_shuffle.npy](data/ind_shuffle.npy) file is provided. This file was used to create consistent dataset splits for train, validation, and test sets.
+
+We ealuated cross-patient prediction methodology in our XGBoost-based model using our study's data and datasets created by adapting data from the study "Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma" (https://doi.org/10.1084/jem.20190196).[1] Their study's data is avaliable from the Gene ExpressionOmnibus under accessions [GSE119755](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119755) and [GSE119834](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119834).  
 
 ## Setup process:
 
@@ -83,3 +85,5 @@ D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in
 E) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
 
 NOTE: 10/18/24 The 'script output save directory' argument and functionality is specific to the **XGBoost, Support Vector Machine, and Gradient Boosting Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
+
+1. Mack SC, Singh I, Wang X, Hirsch R, Wu Q, Villagomez R, et al. Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma. J Exp Med. 20190404th ed. 2019 May 6;216(5):1071–90
