@@ -76,7 +76,7 @@ B) The first data file's path and filename. This script creates the model's trai
 
 
 
-NOTE: The creation of a validation set is controlled by the ```validation = True``` or ```False``` statement in the script's ```main()``` function. The proportions given to each set specified in the ```get_data_patient_1``` function under the comment ```#HYPERPARAMETER TUNING SPLITS``` and ```TESTING SPLITS```.
+NOTE: The creation of a validation set is controlled by the ```validation = True``` or ```False``` statement in the script's ```main()``` function. The proportions given to each set specified in the ```get_data_patient_1``` function under the comment ```#HYPERPARAMETER TUNING SPLITS``` and ```#TESTING SPLITS```.
 
 C) The second data file's path and filename.
 
@@ -84,6 +84,6 @@ D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in
 
 E) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
 
-NOTE: 10/18/24 The 'script output save directory' argument and functionality is specific to the **XGBoost, Support Vector Machine, and Gradient Boosting Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
+NOTE: 3/13/25 The 'script output save directory' argument and functionality is specific to the **XGBoost, Support Vector Machine, Gradient Boosting Regression and Multiple Linear Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
 
 1. Mack SC, Singh I, Wang X, Hirsch R, Wu Q, Villagomez R, et al. Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma. J Exp Med. 20190404th ed. 2019 May 6;216(5):1071–90
