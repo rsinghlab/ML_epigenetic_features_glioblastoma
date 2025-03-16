@@ -1,58 +1,77 @@
-"""
-Goal: Predict gene expression value (regression) from epigenetic signal inputs
+'''
+This is a script to implement 
+a multi-layer perceptron algorithm model.
 
-This is a multi-layer perceptron model.
+Goal: Predict gene expression value (regression) 
+from epigenetic signal inputs.
 
-This model is designed to accept 'raw' input values. It applies the log2
-computation on the target variable before the cross-validation dataset split step.
-The model applies standardization to the train, validation and test datasets
-seperately after the cross_validation split.  
-"""
+It is configured for cross-patient prediction with
+logging, results output and visualizations for 
+downstream analysis.
+
+The script input is two patient datafiles 
+and an index file (all in numpy format). 
+
+The model is trained and validated (if applicable) on 
+the first position datafile. The model is then 
+tested on the second position file.
+
+This script is designed to accept 'raw' input values. It 
+applies the log2 scaling to the target variable before 
+the dataset split process and applies standardization 
+to the train, validation and test datasets seperately 
+after the split.  
+'''
 
 import sys
-import random
 import numpy as np
 import os
 os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
 import tensorflow as tf
-import tensorflow_addons as tfa
-# Method used to troubleshoot issues between SHAP and Tensorflow.
-#tf.compat.v1.disable_v2_behavior()
-from matplotlib import pyplot as plt
-import seaborn as sn
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Conv1D, Flatten, MaxPooling1D, Dense, Dropout, LeakyReLU
-from sklearn.model_selection import KFold
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
+from tensorflow.keras import backend as K
+import tensorflow_addons as tfa
+# Import used to troubleshoot issues between SHAP and Tensorflow.
+#tf.compat.v1.disable_v2_behavior()
+from matplotlib import pyplot as plt
+import seaborn as sn
+from sklearn.model_selection import KFold
 from sklearn import preprocessing
 from tqdm import tqdm
-from tensorflow.keras import backend as K
 #from scipy.stats import pearsonr
 from scipy.stats import spearmanr
 from itertools import product
+import random
 import datetime
 import math
 import shap
 import pandas as pd
 
-def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, validation):
+def get_data_patient_1(file_path, indices, gene_dict, num_genes,
+                       preprocess, validation):
     '''
-    Returns X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
+    return: X_train, Y_train, X_val, Y_val; where X refers 
+    to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
     '''
     
     if preprocess:
        
         print("Loading patient 1 dataset...")
         # Col 1 = gene names, 2 = bin number, 3-6 = features, 7 = labels
-        combined_diff = np.load(file_path, allow_pickle=True)
+        combined_diff = np.load(file_path, allow_pickle = True)
         
         # Get all the unique gene names
         gene_names = np.unique(combined_diff[:, 0])
         num_genes = len(gene_names)
         
-        # Create a dictionary to map each gene name to a unique index (number like 0, 1, 2,...,#genes-1)
+        # Create a dictionary to map each gene name to a 
+        # unique index (number like 0, 1, 2,...,#genes-1)
         gene_dict = dict(zip(gene_names, range(num_genes)))
 
         # Get the number of features (last column is labels - RNAseq)
@@ -67,7 +86,8 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         Y = np.zeros((num_genes, 1))
 
         for name in tqdm(gene_names):
-            # Each subset is of shape 100 x 6 (number of 100bp bins x number of columns)
+            # Each subset is of shape 100 x 6 (number of 
+            # 100bp bins x number of columns)
             subset = combined_diff[np.where(combined_diff[:, 0] == name)]
 
             # Create matrix of data
@@ -80,8 +100,9 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
 
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's RNAseq 
+            # value (since all 50 bins have the same value when 
+            # using the featureCounts utility and process).
             Y[gene_ind] = data[0, -1]
 
             #NOTE: Evaluating different methods of determining the RNAseq value.
@@ -102,7 +123,7 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
 
         
         if validation == True:
@@ -113,8 +134,10 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         
         else:
             # TESTING SPLITS
-            # The training set will have 99% of the patient 1 data to train the model.
-            # The validation set is reduced to 1% but ket to not break the function.
+            # The training set will have 99% of the 
+            # patient 1 data to train the model.
+            # The validation set is reduced to 1% but 
+            # still present to not break the function.
             train_ind = ind
             #train_ind = ind[0: int(0.99*num_genes)]
             val_ind = ind[int(0.99*num_genes):]
@@ -129,30 +152,41 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         
 
         # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
         # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
         datasets = [X_train, X_val]
 
-        # Perform calculation on each column of the seperate train, validation and test sets. 
+        # Perform calculation on each column of 
+        # the seperate train, validation and test sets. 
         for dataset in datasets:
             for i in range(dataset.shape[2]):
                 # Standardize the column values.
-                dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1) # The degrees of freedom is set t
+                dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
                 
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", X_train, allow_pickle=True)
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", X_val, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train",
+                X_train, 
+                allow_pickle = True)
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val",
+                X_val, 
+                allow_pickle = True)
         
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", Y_train, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", Y_val, allow_pickle=True)
+        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train",
+                Y_train, 
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val",
+                Y_val, 
+                allow_pickle = True)
         
     
     else:
-        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
+        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
         
-        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
+        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
         
     
         gene_dict = gene_dict
@@ -161,21 +195,28 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
 
     return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
 
-def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
+def get_data_patient_2(file_path, indices, gene_dict, 
+                       num_genes, preprocess):
     '''
-    Returns X_test, Y_test; where X refers to inputs and Y refers to labels.
+    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
+    return: patient2_ind (the indices for the patient 2 dataset. This
+    may be a subset of the indices shuffle index if the number of genes
+    in the test set is lower than the 20,015 in the training set) 
     '''
 
     if preprocess:
         print("Loading patient 2 dataset...")
         # Col 1 = gene names, 2 = bin number, 3-6 = features, 7 = labels
-        combined_diff = np.load(file_path, allow_pickle=True)
+        combined_diff = np.load(file_path, allow_pickle = True)
         
         # Get all the unique gene names
         gene_names = np.unique(combined_diff[:, 0])
         num_genes = len(gene_names)
 
-        # Create a dictionary to map each gene name to a unique index (number like 0, 1, 2,...,#genes-1)
+        # Create a dictionary to map each gene name to a unique 
+        # index (number like 0, 1, 2,...,#genes-1)
         gene_dict = dict(zip(gene_names, range(num_genes)))
 
         # Get the number of features (last column is labels - RNAseq)
@@ -203,11 +244,14 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
    
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's
+            # RNAseq value (since all 50 bins
+            # have the same value when using 
+            # the featureCounts utility and process).
             Y[gene_ind] = data[0, -1]
 
-            #NOTE: Evaluating different methods of determining the RNAseq value.
+            # NOTE: Evaluating different methods of determining 
+            # the RNAseq value.
             # 1. Calculate the mean of the values over all 50 bins.
             #Y[gene_ind] = np.mean(data[:, -1])
 
@@ -224,7 +268,17 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
+        
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        #print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient2_ind = np.delete(ind, indexes)
+        #print(patient2_ind.shape)
+
 
         # Splits for this patient data can be adjusted here.
         #train_ind = ind[0: int(0.7*num_genes)]
@@ -233,7 +287,8 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
 
         # NOTE: For now use entire dataset for test set.
-        test_ind = ind
+        #test_ind = ind
+        test_ind = patient2_ind
 
         #X_train = X[train_ind]
         #X_val = X[val_ind]
@@ -246,9 +301,7 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
         Y_test = Y[test_ind]
 
         # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
         # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
         datasets = [X_test]
 
         # Perform calculation on each column of the seperate train, validation and test sets.
@@ -261,28 +314,44 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
             #for i in [1,2,3]: ### NO standardization on column 0 - H3K27ac for perturbation analysis ONLY.
             #for i in [0,2,3]: ### NO standardization on column 1 - CTCF for perturbation analysis ONLY.
             #for i in [0,1,3]: ### NO standardization on column 2 - ATAC for perturbation analysis ONLY.
-            #for i in [0,1,2]: ### NO standardization on column 3 - RNA Pol II for perturbation analysis ONLY.
+            #for i in [0,1,2]: ### NO standardization on column 3 - RNAPII for perturbation analysis ONLY.
+
+            
+            # 10/28/24 The line below will restrict standardization 
+            # to the H3K27Ac feature (column 0) for datasets
+            # that only contain those measurements.
+            ### NO standardization on 
+            # columns 1,2,and 3 - CTCF, ATAC and RNAII feature
+            # positions.
+            # for i in [0]: 
+
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
 
 
-        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", X_test, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", Y_test, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                X_test, 
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                Y_test, allow_pickle = True)
 
     else:
-        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
-        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
+        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle = True)
+        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle = True)
 
         gene_dict = gene_dict
         num_genes = num_genes
 
-    return X_test, Y_test, gene_dict, num_genes
+    return X_test, Y_test, gene_dict, num_genes, patient2_ind
 
 def reset_random_seeds(seed):
     '''
     Takes a given number and assigns it
     as a random seed to various generators and the
     os environment.
+    return: None
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -292,9 +361,12 @@ def reset_random_seeds(seed):
 
     return None
 
-def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, learning_rate, hidden_size_1, hidden_size_2, hidden_size_3, dropout_rate):
+def train_model(X_train, X_val, Y_train, Y_val, 
+                epochs, validation, batch_size, 
+                learning_rate, hidden_size_1, hidden_size_2,
+                hidden_size_3, dropout_rate):
     """
-    Implements and trains the model using a CNN
+    Implements and trains the model
     param X_train: the training inputs
     param Y_train: the training labels
     param X_val: the validation inputs
@@ -310,32 +382,57 @@ def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, 
     dropout_rate = dropout_rate 
     
     # Model composed with tensorflow's functional API
-    epigenetic_input = Input(shape=X_train.shape[1:], name = 'epigenetic_features_input')
+    epigenetic_input = Input(shape=X_train.shape[1:], 
+                             name = 'epigenetic_features_input')
     epigenetic_flatten = Flatten(name = 'flatten_epigenetic_features')(epigenetic_input)
-    epigenetic = Dense(hidden_size_1, activation='relu', name = 'Dense_Layer_1')(epigenetic_flatten)
-    epigenetic = Dropout(dropout_rate, name = 'Dropout_Layer_1')(epigenetic)  
-    epigenetic = Dense(hidden_size_2, activation='relu', name = 'Dense_Layer_2')(epigenetic)
-    epigenetic = Dropout(dropout_rate, name = 'Dropout_Layer_2')(epigenetic)
+    epigenetic = Dense(hidden_size_1, 
+                       activation='relu', 
+                       name = 'Dense_Layer_1')(epigenetic_flatten)
+    epigenetic = Dropout(dropout_rate, 
+                         name = 'Dropout_Layer_1')(epigenetic)  
+    epigenetic = Dense(hidden_size_2, 
+                       activation='relu', 
+                       name = 'Dense_Layer_2')(epigenetic)
+    epigenetic = Dropout(dropout_rate, 
+                         name = 'Dropout_Layer_2')(epigenetic)
     # No activation/Linear activation on dense layer before output.
-    epigenetic = Dense(hidden_size_3, name = 'Dense_Layer_3_-linear_activation_used')(epigenetic)
+    epigenetic = Dense(hidden_size_3, 
+                       name = 'Dense_Layer_3_-linear_activation_used')(epigenetic)
     # Single output with no activation for regression.
-    epigenetic_output = Dense(1, name = 'Model_prediction_output')(epigenetic)
+    epigenetic_output = Dense(1, 
+                              name = 'Model_prediction_output')(epigenetic)
     
     model = Model(inputs = [epigenetic_input], outputs = epigenetic_output)
 
 
     
-    # Plot model graph
-    plot_model(model, to_file = 'pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_pred_regression_model.png', show_shapes=True)
+    # Plot model architecture
+    # plot_model(model, 
+    #           to_file = './mlp_cross_patient_pred_regression_model.png', 
+    # show_shapes = True, dpi = 300)
     
     # Set random seed
     reset_random_seeds(10)
     
-    model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate), metrics=metrics)
+    # Compile model
+    model.compile(loss='mean_squared_error',
+                  optimizer = Adam(learning_rate), 
+                  metrics = metrics)
+    
+    
     if validation == True:
-        history = model.fit({'epigenetic_features_input': X_train}, Y_train, validation_data=({'epigenetic_features_input' : X_val}, Y_val), epochs=epochs, batch_size=batch_size, shuffle=False)
+        history = model.fit({'epigenetic_features_input': X_train},
+                            Y_train, 
+                            validation_data=({'epigenetic_features_input' : X_val}, Y_val), 
+                            epochs = epochs, 
+                            batch_size = batch_size,
+                            shuffle = False)
     else:
-        history = model.fit({'epigenetic_features_input': X_train}, Y_train, epochs=epochs, batch_size=batch_size, shuffle=False)
+        history = model.fit({'epigenetic_features_input': X_train},
+                            Y_train, 
+                            epochs = epochs, 
+                            batch_size = batch_size, 
+                            shuffle = False)
 
     #history = model.fit(X_train, Y_train, epochs=epochs, batch_size=batch_size, shuffle=False)
 
@@ -343,7 +440,9 @@ def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, 
 
 def pearson_r(y_true, y_pred):
     '''
-    Calculate Pearson Correlation Coefficient (PCC) as a metric for the model.
+    Calculate Pearson Correlation Coefficient (PCC) as a 
+    metric for the model.
+    return: PCC calculation
     '''
     x = y_true
     y = y_pred
@@ -360,31 +459,44 @@ def pearson_r(y_true, y_pred):
 
 def spearman_r(y_true, y_pred):
     '''
-    Calculate Spearman Correlation Rank Coefficient (SCRC) as a metric for the model.
+    Calculate Spearman Correlation Rank Coefficient 
+    (SCRC) as a metric for the model.
+    return: SCC calculation
     '''
-    spearman_value = tf.py_function(spearmanr, [tf.cast(y_pred, tf.float32), tf.cast(y_true, tf.float32)], Tout = tf.float32)
+    spearman_value = tf.py_function(spearmanr, 
+                                    [tf.cast(y_pred, tf.float32),
+                                     tf.cast(y_true, tf.float32)], 
+                                    Tout = tf.float32)
     return spearman_value
 
 def calculate_se_for_predictions(y_true, y_pred):
     '''
-    Calculates the Squared Error on the test set predictions 
-    after the model is trained.
+    Calculates the Squared Error on the test 
+    set predictions after the model is trained.
     param y_true: the true (observed) RNAseq values.
     param y_pred: the model's predicted values.
 
-    returns: Array of SE values the same length as Y_test.
+    returns: Array of Squared Error values the same length as Y_test.
     '''
 
-    prediction_se = np.round_(np.square(y_true - y_pred), decimals = 6)
+    prediction_se = np.round_(np.square(y_true - y_pred), 
+                              decimals = 6)
+    
+    #prediction_se = np.round_(np.square(np.squeeze(y_true) - y_pred),
+    #                          decimals = 9)
+
 
     return prediction_se
 
 def calculate_prediction_high_low(mse, y_true, y_pred):
     '''
-    Determines the index positions for genes with the "best" and "worst"
-    predictions. The 25% with the lowest MSE and the 25% with the highest.
-    The mse values should be originally in the order of their index positions
-    in the test set. They are sorted into ascending order here. A second sort is then performed to 
+    Determines the index positions for genes with the 
+    "best" and "worst" predictions. The 25% with the lowest 
+    MSE and the 25% with the highest.
+    
+    The mse values should be originally in the order of 
+    their index positions in the test set. They are sorted 
+    into ascending order here. A second sort is then performed to 
     seperate the genes into groups where the true RNAseq values indicate
     they are "highly" or "lowly" expressed.
 
@@ -429,7 +541,7 @@ def calculate_prediction_high_low(mse, y_true, y_pred):
     #return highly_expressed_low_mse_group
     
 
-def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
+def get_gene_names(gene_dict, indices, test_data_shape, num_genes, shuffle_index):
     '''
     Using the input dictionary of gene names and their unique identifier
     this function extracts the genes and their index position in X_test data
@@ -438,8 +550,12 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
 
     returns: Returns a list of the gene names
     '''
+    ### Discontinue using the loaded index file because it 
+    ### is setup for 20,0015 genes and does not accomidate
+    ### the smaller set of genes in avaliable in the later
+    ### datasets used for cross-patient testing.
     # Load indices file used for shuffle operation.
-    shuffle_index = np.load(indices, allow_pickle=True)
+    # shuffle_index = np.load(indices, allow_pickle=True)
     
     #shuffle_index = np.arange(0, 20015) 
     # Invert order of keys and values for gene dictionary.
@@ -456,21 +572,21 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
 def visualize_loss(history, validation, count):
     '''
     Visualization of model loss over all epochs.
-    returns: Nothing. A visualization will appear and/or be saved.
+    return: Nothing. The visualization is saved to
+    the script save folder.
     '''
     plt.close()
     plt.plot(history.history['loss'], color = 'orchid')
     if validation:
         plt.plot(history.history['val_loss'], color = 'wheat')
-    plt.title("Loss - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem")
+    plt.title('Loss - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem')
     plt.ylabel('loss')
     plt.xlabel('epoch')
     if validation:
         plt.legend(['train loss', 'validation loss'], loc='upper left')
     else:
         plt.legend(['train loss'], loc='upper left')
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_loss_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/mlp_loss_' + str(count) + '.png')
 
     return None
 
@@ -478,22 +594,22 @@ def visualize_pcc(history, validation, count):
     '''
     Visualization of the Pearson Correlation Coefficient (PCC)
     values over all epochs.
-    returns: Nothing. A visualization will appear and/or be saved.
+    return: Nothing. The visualization is saved to
+    the script save folder.
     '''
     plt.close()
     plt.plot(history.history['pearson_r'], color = 'springgreen')
     if validation:
         plt.plot(history.history['val_pearson_r'], color = 'gray')
     #plt.title(name)
-    plt.title("PCC - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem")
+    plt.title('PCC - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem')
     plt.ylabel('PCC')
     plt.xlabel('epoch')
     if validation:
         plt.legend(['train pcc', 'validation pcc'], loc='upper left')
     else:
         plt.legend(['train pcc'], loc='upper left')
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_pcc_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/mlp_pcc_' + str(count) + '.png')
 
     return None
 
@@ -501,43 +617,42 @@ def visualize_scc(history, validation, count):
     '''
     Visualization of the Spearman Correlation Rank Coefficient (SCC)
     values over all epochs.
-    returns: Nothing. A visualization will appear and/or be saved.
+    returns: Nothing. The visualization is saved to
+    the script save folder.
     '''
     plt.close()
     plt.plot(history.history['spearman_r'], color = 'palegoldenrod')
     if validation:
         plt.plot(history.history['val_spearman_r'], color = 'crimson')
-    plt.title("SCC - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem")
+    plt.title('SCC - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem')
     plt.ylabel('SCC')
     plt.xlabel('epoch')
     if validation:
         plt.legend(['train scc', 'validation scc'], loc='upper left')
     else:
         plt.legend(['train scc'], loc='upper left')
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_scc_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/mlp_scc_' + str(count) + '.png')
 
     return None
 
 def visualize_rsquare(history, validation, count):
     '''
     Visualize the RSquare metric accross all epochs.
-
-    returns: Nothing. The plot will appear and/or be saved.
+    returns: Nothing. The visualization is saved to
+    the script save folder.
     '''
     plt.close()
     plt.plot(history.history['r_square'], color = 'yellow')
     if validation:
         plt.plot(history.history['val_r_square'], color = 'red')
-    plt.title("R2 - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem")
+    plt.title('R2 - Regression MLP (Standardized input/Log2 target) Realigned GSC Stem')
     plt.ylabel('R2')
     plt.xlabel('epoch')
     if validation:
         plt.legend(['train R2', 'validation R2'], loc = 'upper left')
     else:
         plt.legend(['train R2'], loc = 'upper left')
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_rsquare_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/mlp_rsquare_' + str(count) + '.png')
 
     return None
 
@@ -545,7 +660,8 @@ def visualize_metrics_together(history, validation, count):
     '''
     Combined visualization of the metrics
     values over all epochs.
-    returns: Nothing. A visualization will appear and/or be saved.
+    returns: Nothing. The visualization is saved to
+    the script save folder.
     '''
     plt.close()
     plt.plot(history.history['spearman_r'], color = 'tomato')
@@ -555,15 +671,14 @@ def visualize_metrics_together(history, validation, count):
         plt.plot(history.history['val_spearman_r'], color = 'whitesmoke')
         plt.plot(history.history['val_pearson_r'], color = 'gainsboro')
         plt.plot(history.history['val_r_square'], color = 'darkgrey')
-    plt.title("Regression MLP (Standardized input/Log2 target) Realigned GSC Stem")
+    plt.title('Regression MLP (Standardized input/Log2 target) Realigned GSC Stem')
     plt.ylabel('Metric value')
     plt.xlabel('epoch')
     if validation:
         plt.legend(['train scc', 'train pcc', 'train R^2', 'validation scc', 'validation pcc', 'validation R^2'], loc='lower right')
     else:
         plt.legend(['train scc', 'train pcc', 'train R^2'], loc='upper left')
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_metrics_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/mlp_metrics_' + str(count) + '.png')
 
     return None
 
@@ -571,11 +686,14 @@ def visualize_metrics_together(history, validation, count):
 def visualize_training_validation_distributions(y_train, y_val, validation):
     '''
     Creates multiple visualizations for the for the 
-    training and validation sets. Visualizations are saved to the models image folder.
-    param y_train: the true (observed) RNAseq values for the test set.
-    param y_val: the true (observed) RNAseq values for the validation set.
+    training and validation sets. 
+    param y_train: the true (observed) RNAseq values
+                   for the test set.
+    param y_val: the true (observed) RNAseq values 
+                 for the validation set.
 
-    returns: Nothing.
+    return: Nothing. Visualizations are saved to
+    the script save folder.
     '''
 
     # Build dataframe for visualization.
@@ -588,7 +706,7 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
     sn.histplot(y_train, legend = False, palette= ['red'], bins = 50)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/Training_set_genes_RNAseq_value_counts-_histogram_plot.png')
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png')
     #plt.show()
 
     plt.close()
@@ -597,7 +715,7 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
     sn.histplot(y_val, legend = False, palette = ['darkblue'], bins = 50)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/Training_set_genes_RNAseq_value_counts-_histogram_plot.png')
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png')
     #plt.show()
 
     training_RNAseq_dataframe = pd.Series(np.squeeze(y_train))
@@ -610,9 +728,9 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
     training_true_expression_between_5_and_10 = training_RNAseq_dataframe[(training_RNAseq_dataframe >= 5) & (training_RNAseq_dataframe < 10)]
     training_true_expression_between_10_and_15 = training_RNAseq_dataframe[(training_RNAseq_dataframe >= 10) & (training_RNAseq_dataframe <= 15)]
     
-    training_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : ["all zero", "between 0_and 5", 
-                                                                    "between 5 and 10", "between 10 and 15" ],
-                                            "count": [len(training_all_zero_true_expression), len(training_true_expression_between_0_and_5), 
+    training_expression_counts_dataframe = pd.DataFrame({'expression catagory after log(2) transformation' : ['all zero', 'between 0_and 5', 
+                                                                    'between 5 and 10', 'between 10 and 15' ],
+                                            'count': [len(training_all_zero_true_expression), len(training_true_expression_between_0_and_5), 
                                                      len(training_true_expression_between_5_and_10), len(training_true_expression_between_10_and_15)]})
 
     if validation == True:
@@ -622,8 +740,8 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
         validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
         validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
 
-        validation_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : ["all zero", "between 0 and 5", 
-                                                                    "between 5 and 10", "between 10 and 15" ],
+        validation_expression_counts_dataframe = pd.DataFrame({'expression catagory after log(2) transformation' : ['all zero', 'between 0 and 5', 
+                                                                    'between 5 and 10', 'between 10 and 15'],
                                                 "count": [len(validation_all_zero_true_expression), len(validation_true_expression_between_0_and_5), 
                                                      len(validation_true_expression_between_5_and_10), len(validation_true_expression_between_10_and_15)]})
 
@@ -640,97 +758,80 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
         plt.close()
         sn.set_theme(style = 'whitegrid')
         fig, ax = plt.subplots(figsize = (8, 5))
-        ax = sn.barplot(data = dataframes[l], x = "expression catagory after log(2) transformation", y = "count")
+        ax = sn.barplot(data = dataframes[l], x = 'expression catagory after log(2) transformation', y = 'count')
         ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
         ax.set(title = f'{dataset_names[l]} - MLP Cross Patient Regression Expression Catagory Counts')
         sn.set(font_scale=1)
         for i in ax.containers:
             ax.bar_label(i,)
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_Regression_' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
+        plt.savefig(save_directory + '/' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
 
     return None
 
 
 def visualize_prediction_mse(prediction_mses, y_true, y_pred):
     '''
-    Creates multiple visualizations for the mean squared error values for the 
-    test set.
+    Creates multiple visualizations for the mean 
+    squared error values for the test set.
 
-    returns: Nothing. A visualization should appear and/or be saved.
+    returns: Nothing. The visualizations will saved to the script
+             save directory.
     '''
     plt.close()
-    sn.set_theme(style = "whitegrid")
+    sn.set_theme(style = 'whitegrid')
     plt.title('Mean Squared Error Values for Test Set Genes')
     plt.ylabel('MSE')
     plt.xlabel('Gene index in test set')
     plt.scatter(np.arange(prediction_mses.shape[0]), prediction_mses)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_mse_values.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_mse_values.png', bbox_inches = 'tight')
 
     plt.close()
-    sn.set_theme(style = "whitegrid")
+    sn.set_theme(style = 'whitegrid')
     plt.title('Mean Squared Error Values for the Test Set Genes')
     plt.ylabel('count')
     plt.xlabel('Mean Squared Error')
     sn.histplot(prediction_mses, legend = False, color = 'red', bins = 50)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_mse_values_-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_mse_values_-_histogram_plot.png', bbox_inches = 'tight')
 
 
     plt.close()
-    sn.set_theme(style = "whitegrid")
+    sn.set_theme(style = 'whitegrid')
     plt.title('True RNAseq Values for the Test Set Genes')
     plt.ylabel('count')
     plt.xlabel('True values')
     sn.histplot(y_true, legend = False, color = 'blue', bins = 50)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_true_RNAseq_values_-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_true_RNAseq_values_-_histogram_plot.png', bbox_inches = 'tight')
+
 
     plt.close()
-    sn.set_theme(style = "whitegrid")
+    sn.set_theme(style = 'whitegrid')
     plt.title('Predicted RNAseq Values for the Test Set Genes')
     plt.ylabel('count')
     plt.xlabel('Predicted values')
     sn.histplot(y_pred, legend = False, color = 'red', bins = 50)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', bbox_inches = 'tight')
+
     return None
 
-#def visualize_prediction(sorted_mse_with_idx, test_true_values, test_prediction, gene_names):
+
 def visualize_prediction(highly_expressed_low_mse_group, lowly_expressed_low_mse_group, highly_expressed_high_mse_group, lowly_expressed_high_mse_group, mse_value, test_true_values, test_prediction, gene_names):
-    """
-    This function provides insight into the model's prediction on test set data in
-    both graphical and text forms. It includes two helper functions.
+    '''
+    This function visualizes the model's predictions on 
+    the test set.
 
-    
     param test_labels: The Y labels for the test set.
-    param test_predictions: The returned predictions from make_prediction function.
-    param gene_names: The dictionary produced in the get_data function that collects the
+    param test_predictions: The returned predictions 
+                            from make_prediction function.
+    param gene_names: The dictionary produced in 
+                      the get_data function that collects the
                       gene_name and its unique identifier.
-    returns: Indices of correct and incorrect predictions.
-    Two visualization should appear and be saved.
-    """
-
-    # Create csv file to hold prediction information.
-    #with open('mlp_tuning_regression_baseline_gsc_stem_standard_test_predictions.csv', 'w') as log:
-    #        log.write(f'gene_name, gene_index_in_test_set, MSE for prediction, true_RNAseq_value, predicted_RNAseq_value')
+    return: Nothing. Two visualizations be saved.
+    '''
 
 
-    #def prediction_csv(gene_indices, mse_value, true_RNAseq_value, predicted_RNAseq_value, gene_names):
-    #    '''
-    #    Helper function to output prediction information to csv file created above.
-    #    '''
-    #    for i in range(len(gene_indices)):
-    #        index = gene_indices[i]
-    #        gn = gene_names[index]
-    #        mse = mse_value[i]
-    #        tv = true_RNAseq_value[index]
-    #        pv = predicted_RNAseq_value[index]
-    #        with open('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_tuning_regression_baseline_gsc_stem_standard_test_predictions.csv', 'a') as log:
-    #            log.write('\n' f'{gn}, {index}, {mse}, {tv}, {pv}')
-
-
-    def prediction_plot(gene_indices, chart_label, mse_value, true_RNAseq_value, predicted_RNAseq_value, gene_names):
+    def prediction_plot(gene_indices, chart_label, 
+                        mse_value, true_RNAseq_value, 
+                        predicted_RNAseq_value, gene_names):
         '''
         Plots a smaller portion of the full prediction information.
         '''
@@ -757,21 +858,9 @@ def visualize_prediction(highly_expressed_low_mse_group, lowly_expressed_low_mse
             ax.tick_params(axis = 'both', which = 'both', length = 0)
         fig.suptitle("{} genes from test set\nTV = True RNAseq Value\nPV = Predicted RNAseq Value, GI = Gene index position in test set".format(chart_label))
         fig.tight_layout()
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_Prediction_' + chart_label + '.png')
-        #plt.show()
+        plt.savefig(save_directory + '/MLP_regression_Prediction_' + chart_label + '.png')
 
 
-    #gene_indices = [i[1] for i in sorted_mse_with_idx]
-    #mse_value = [i[0] for i in sorted_mse_with_idx]
-
-    #prediction_csv(gene_indices, mse_value, test_true_values, test_prediction)
-    #prediction_csv(highly_expressed_low_mse_group, mse_value, test_true_values, test_prediction, gene_names)
-    #prediction_csv(lowly_expressed_low_mse_group, mse_value, test_true_values, test_prediction, gene_names)
-    #prediction_csv(highly_expressed_high_mse_group, mse_value, test_true_values, test_prediction, gene_names)
-    #prediction_csv(lowly_expressed_high_mse_group, mse_value, test_true_values, test_prediction, gene_names)    
-
-    #prediction_plot(gene_indices[:9], "Low MSE Prediction", mse_value[:9], test_true_values, test_prediction)
-    #prediction_plot(gene_indices[-9:], "High MSE Prediction", mse_value[-9:], test_true_values, test_prediction)
     prediction_plot(highly_expressed_low_mse_group[:9], "Highly expressed with low MSE", mse_value, test_true_values, test_prediction, gene_names)
     prediction_plot(lowly_expressed_low_mse_group[:9], "Lowly expressed with low MSE", mse_value, test_true_values, test_prediction, gene_names)
     prediction_plot(highly_expressed_high_mse_group[-9:], "Highly expressed with high MSE", mse_value, test_true_values, test_prediction,gene_names)
@@ -781,20 +870,21 @@ def visualize_prediction(highly_expressed_low_mse_group, lowly_expressed_low_mse
 
 def visualize_test_obs_pred(y_true, y_pred):
     '''
-    Creates multiple visualizations showing the observed (true) RNAseq values
-    vs the predicted RNAseq values
+    Creates multiple visualizations showing the 
+    observed (true) RNAseq values vs the predicted RNAseq 
+    values.
     '''
     plt.close()
     fig, ax = plt.subplots()
-    plt.title("RNAseq Observed Values vs Predicted Values")
+    plt.title('RNAseq Observed Values vs Predicted Values')
     plt.ylabel("Predicted Values")
     plt.xlabel("True Values")
     ax.scatter(y_true, y_pred)
     ax.axline([0, 0], [1, 1])
     plt.xlim(0, 15)
     plt.xlim(0, 15)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_observed_vs_predicted.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_observed_vs_predicted.png', bbox_inches = 'tight')
+
 
     # Create dataframe of true and predicted values for visualization.
     data = {'True Values': np.squeeze(y_true), 'Predicted Values': np.squeeze(y_pred)}
@@ -804,15 +894,15 @@ def visualize_test_obs_pred(y_true, y_pred):
     plt.close()
     plt.title("RNAseq Observed Values vs Predicted Values Joint Plot")
     sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_observed_vs_predicted_joint_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_observed_vs_predicted_joint_plot.png', bbox_inches = 'tight')
+
 
     # Kernal Density Estimation joint plot
     plt.close()
     plt.title("RNAseq Observed Values vs Predicted Values KDE Joint Plot")
     sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df, kind = 'kde')
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/MLP_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', bbox_inches = 'tight')
+
 
     return None
 
@@ -824,7 +914,7 @@ def visualize_aggregated_input_profiles(test_dataset, all_zero_true_expression, 
     NOTE: Although a provision was coded to normalize the features for visualization,
     it is currently not in use because the input features are already standardized.
     
-    returns: Nothing
+    returns: Nothing. Visualizations are saved.
     '''
 
     
@@ -852,35 +942,34 @@ def visualize_aggregated_input_profiles(test_dataset, all_zero_true_expression, 
         #ax = sn.heatmap(mean_gene_vals.T, annot = True, cbar_ax = cbar_ax, cbar_kws = {'orientation': 'horizontal'})
         
         fig.suptitle(f'{heatmap_names[h]}')      
-        ax = sn.heatmap(mean_gene_vals.T, cbar = False, annot = True, fmt='.7f', cmap = 'OrRd', annot_kws={'rotation':90})
+        ax = sn.heatmap(mean_gene_vals.T, cbar = False, annot = True, fmt='.7f', cmap = 'OrRd', annot_kws = {'rotation':90})
         ax.set_xlabel('bins')
         ax.set_yticks([0.5, 1.5, 2.5, 3.5])
-        ax.set_yticklabels(['H3K27ac','CTCF','ATAC','RNA Pol II'])
+        ax.set_yticklabels(['H3K27Ac','CTCF','ATAC','RNAPII'])
         ax.set_ylabel('epigenetic features')
         ax.text(x = 0.5, y = 1.04, s = f'Feature values after standardization.', fontsize = 10, ha = 'center', va = 'bottom', transform = ax.transAxes)
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/' + heatmap_names[h] + '_seaborn.png', dpi = 150, bbox_inches = 'tight')
+        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.png', dpi = 150, bbox_inches = 'tight')
         #plt.show()
 
     return None
 
 
-#def visualize_correlation(test_data, low_mse_indexes, high_mse_indexes):
 def visualize_correlation(test_data, highly_expressed_low_mse_group, lowly_expessed_low_mse_group, highly_expressed_high_mse_group, lowly_expressed_high_mse_group):
     '''
     Creates 8 visualizations showing the feature correlation
     for "accurate" and "inaccurate" predictions within groups where the 
     true RNAseq shows relatively low or high gene expression.  
 
-    returns: Nothing. Visualization should appar and/or be saved.
+    returns: Nothing. Visualizations are saved to the script .
     '''
-    feature_labels = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II']
+    feature_labels = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII']
     #correlation_indexes = [low_mse_indexes, high_mse_indexes]
     correlation_indexes = [highly_expressed_low_mse_group, lowly_expessed_low_mse_group, highly_expressed_high_mse_group, lowly_expressed_high_mse_group]
     correlation_names = ['Regression - Correlation - genes with high exp, low MSE', 'Regression - Correlation - genes with low exp, low MSE', 'Regression - Correlation - genes with high exp, high MSE', 'Regression - Correlation - genes with low exp, high MSE']
     for h in range(len(correlation_indexes)):
         mean_gene_vals = np.mean(test_data[correlation_indexes[h]], axis = 0)
 
-        df = pd.DataFrame(mean_gene_vals, columns = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'])
+        df = pd.DataFrame(mean_gene_vals, columns = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'])
         corr_matrix = df.corr(method='pearson')
         
         #plt.matshow(df.corr(method='pearson'))
@@ -899,8 +988,8 @@ def visualize_correlation(test_data, highly_expressed_low_mse_group, lowly_expes
         cmap = sn.diverging_palette(98, 230, as_cmap = True)
         ax = sn.heatmap(corr_matrix, annot = True, cmap = cmap, square = True, cbar_kws = {'shrink': 0.5})
         plt.title(correlation_names[h])
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/MLP_' + correlation_names[h] +'.png')
-        #plt.show()
+        plt.savefig(save_directory + '/MLP_' + correlation_names[h] + '.png')
+
 
 
         plt.close()
@@ -910,8 +999,7 @@ def visualize_correlation(test_data, highly_expressed_low_mse_group, lowly_expes
         cmap = sn.diverging_palette(98, 230, as_cmap = True)
         ax = sn.heatmap(corr_matrix, annot = True, mask = mask, cmap = cmap, vmax = 0.3, square = True, linewidths = 0, cbar_kws = {'shrink': 0.5})
         plt.title(correlation_names[h])
-        plt.savefig('pngs_mlp_regression_baseline_gsc_stem_standard_log2/MLP_' + correlation_names[h] +'_diagonal_plot.png')
-        #plt.show()
+        plt.savefig(save_directory + '/MLP_' + correlation_names[h] +'_diagonal_plot.png')
 
     return None
 
@@ -922,7 +1010,7 @@ def calculate_shap_values(model, X_train, X_test):
     param model: The trained model.
     param X_train: The training set feature inputs.
     param X_test: The test set feature inputs.
-    returns: SHAP values and explainer.
+    return: SHAP values and explainer.
     '''
 
     # Using deep explainer.
@@ -977,10 +1065,9 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         #fig.suptitle(f"SHAP summary for gene test index {index} : {gene}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene)) 
         #ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
-        shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
-        plt.title(f"SHAP summary for gene test index {index} : {gene}")
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png', dpi = 100, bbox_inches = 'tight')
-        #plt.show()
+        shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = 'dot', show = False)
+        plt.title(f'SHAP summary for gene test index {index} : {gene}')
+        plt.savefig(save_directory + '/' + gene + '_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png', dpi = 100, bbox_inches = 'tight')
 
         # Plot region of interest for gene in dot plot.
         ####plt.close()
@@ -988,7 +1075,7 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig.suptitle(f"SHAP summary for gene test index {index} : {gene}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene)) 
         ####ax = shap.summary_plot(deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "dot", show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
+        ####plt.savefig(save_directory + '/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
         #plt.show()
 
         # Plot gene of interest in bar plot.
@@ -998,9 +1085,9 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         #fig.suptitle(f"SHAP summary for gene test index {index} : {gene}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene))
         #ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
-        shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
-        plt.title(f"SHAP summary for gene test index {index} : {gene}")
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_cross_patient_regression_SHAP_deep_explianer_bar_plot.png', dpi = 100, bbox_inches = 'tight')
+        shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = 'bar', show = False)
+        plt.title(f'SHAP summary for gene test index {index} : {gene}')
+        plt.savefig(save_directory + '/' + gene + '_-_cross_patient_regression_SHAP_deep_explianer_bar_plot.png', dpi = 100, bbox_inches = 'tight')
         #plt.show()
 
         # Plot region of interest for gene in bar plot.
@@ -1009,21 +1096,21 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig.suptitle(f"SHAP summary for gene test index {index} : {gene}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene))
         ####ax = shap.summary_plot(deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "bar", show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
+        ####plt.savefig(save_directory + '/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
         #plt.show()
 
         #plt.close()
         #shap.summary_plot(gradient_shap_values[0], plot_type = 'bar', show=True)
-        #plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/Regression_SHAP_summary_plot - gradient.png')
+        #plt.savefig(save_directory + '/Regression_SHAP_summary_plot - gradient.png')
 
         #plt.close()
         #shap.plots.bar(deep_shap_values)
-        #plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/Regression_SHAP_summary_plot - gradient-bar.png')
+        #plt.savefig(save_directory + '/Regression_SHAP_summary_plot - gradient-bar.png')
 
         # Summary plot 2
         #plt.close()
         #shap.plots.beeswarm(deep_explainer, show = False)    
-        #plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/Regression_SHAP_beeswarm_plot.png')
+        #plt.savefig(save_directory + '/Regression_SHAP_beeswarm_plot.png')
 
         # Waterfall plot
         # This plot type can take only one example at a time. It cannot plot groups or multiple 
@@ -1032,16 +1119,16 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP local analysis for gene test index {index} : {gene}; bin : {bin_of_interest}")
         #ax.set(title = "SHAP local analysis for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        ####ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_regression_SHAP_waterfall_plot.png')
+        ####ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        ####plt.savefig(save_directory + '/' + gene + '_-_regression_SHAP_waterfall_plot.png')
         #plt.show()
 
         # Force plot
         #shap.initjs()
         #plt.close()
         #fig, ax = plt.subplots()
-        #ax = shap.force_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], features = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        #plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_regression_SHAP_force_plot.png')
+        #ax = shap.force_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], features = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        #plt.savefig(save_directory + '/' + gene + '_regression_SHAP_force_plot.png')
         #plt.show()
 
         # Decision plot
@@ -1051,8 +1138,8 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP local analysis for gene test index {index} : {gene}; bin : {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        ####ax = shap.decision_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/'+ gene + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
+        ####ax = shap.decision_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        ####plt.savefig(save_directory + '/'+ gene + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
 
     return None
 
@@ -1063,7 +1150,8 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
     Function produces visualizations for groups
     of genes.
 
-    returns:
+    return: Nothing. Visualizations are saved in script save
+            directory.
     '''
     gene_indecies = [list(all_zero_true_expression.index), list(true_expression_between_0_and_5.index), list(true_expression_between_5_and_10.index), list(true_expression_between_10_and_15.index), list(prediction_dataframe.index)]
     indices_names = ['SHAP Analysis - Zero Expression Genes','SHAP Analysis - Genes with true expression values between 0 and 5', 'SHAP Analysis - Genes with true expression values between 5 and 10','SHAP Analysis - Genes with true expression values from 10 to 15', 'SHAP Analysis - All genes in test set']
@@ -1090,9 +1178,9 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test {indices_names[i]}")
         ####ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
-        shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
-        plt.title(f"{indices_names[i]}")
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explainer_dot_plot.png', dpi = 100, bbox_inches = 'tight')
+        shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = 'dot', show = False)
+        plt.title(f'{indices_names[i]}')
+        plt.savefig(save_directory + '/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explainer_dot_plot.png', dpi = 300, bbox_inches = 'tight')
         #plt.show()
 
         # Plot region of interest for catagory in dot plot.
@@ -1100,7 +1188,7 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test {indices_names[i]}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
         ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "dot", show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
+        ####plt.savefig(save_directory + '/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
         #plt.show()
 
         # Plot gene catagory in bar plot.
@@ -1109,17 +1197,17 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test {indices_names[i]}")
         ####ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
-        shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
-        plt.title(f"{indices_names[i]}")
-        plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explianer_bar_plot.png', dpi = 100, bbox_inches = 'tight')
+        shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = 'bar', show = False)
+        plt.title(f'{indices_names[i]}')
+        plt.savefig(save_directory + '/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explianer_bar_plot.png', dpi = 300, bbox_inches = 'tight')
         #plt.show()
 
         # Plot region of interest for catagory in bar plot.
         ####plt.close()
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test {indices_names[i]}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
-        ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "bar", show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
+        ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = "bar", show = False)
+        ####plt.savefig(save_directory + '/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
         #plt.show()
 
 
@@ -1131,8 +1219,8 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         #fig.suptitle(f"SHAP local analysis for gene test index {i}; bin : {bin_of_interest}")
         ##ax.set(title = "SHAP local analysis for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
         #ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], group_shap_values[0][bin_of_interest], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        #plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + i + '_regression_SHAP_waterfall_plot.png')
-        #plt.show()
+        #plt.savefig(save_directory + '/' + i + '_regression_SHAP_waterfall_plot.png')
+
 
         # Decision plot
         # Plot region of interest for catagory in decision plot.
@@ -1140,8 +1228,8 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP local analysis for gene test {indices_names[i]}; bins : {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        ####ax = shap.decision_plot(deep_explainer.expected_value[0], list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        ####plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/'+ indices_names[i] + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
+        ####ax = shap.decision_plot(deep_explainer.expected_value[0], list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        ####plt.savefig(save_directory + '/'+ indices_names[i] + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
 
     #return list_of_mean_group_shap_values
     return None
@@ -1149,11 +1237,11 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
 
 
 def make_prediction(model, input_data):
-    """
+    '''
     param model: a trained model
     param input_data: model inputs
     return: the model's predictions for the provided input data
-    """
+    '''
 
     return np.asarray(model.predict(input_data), dtype='float')
 
@@ -1171,7 +1259,7 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
     returns: Nothing
     '''
    # Create csv file to hold prediction information.
-    with open('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
+    with open(save_directory +  '/mlp_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
             log.write(f'gene name, true RNAseq value, predicted RNAseq value, prediction Squared Error (SE)')
 
     for i in tqdm(range(len(gene_names))):
@@ -1180,14 +1268,14 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
         se = se_value[i]
         tv = y_true[i]
         pv = y_pred[i]
-        with open('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
+        with open(save_directory +  '/mlp_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
             log.write('\n' f'{gn}, {tv[0]}, {pv[0]}, {se[0]}')
 
     return None
 
 def load_csv_and_create_dataframes():
     
-    prediction_dataframe = pd.read_csv('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision='round_trip')
+    prediction_dataframe = pd.read_csv(save_directory +  '/mlp_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision = 'round_trip')
     
     # Define gene expression catagories for analysis.
 
@@ -1211,22 +1299,20 @@ def visualize_model_test_results(results_list):
     returns: Nothing
     '''
     
-    results_dataframe = pd.DataFrame({"metric" : ["PCC", "SCC", "R2"],
-                                      "test set results": [results_list[1], results_list[3], results_list[2]]})
+    results_dataframe = pd.DataFrame({'metric' : ['PCC', 'SCC', 'R2'],
+                                      'test set results': [results_list[1], results_list[3], results_list[2]]})
     plt.close()
     sn.set_theme(style = 'whitegrid')
     fig, ax = plt.subplots(figsize = (8, 5))
-    ax = sn.barplot(data = results_dataframe, x = "metric", y = "test set results")
+    ax = sn.barplot(data = results_dataframe, x = 'metric', y = 'test set results')
     ax.set_xticklabels(ax.get_xticklabels())
     ax.set(title = 'MLP Cross Patient Regression Test Results')
     sn.set(font_scale=1)
     for i in ax.containers:
         ax.bar_label(i,)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_metric_results.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/mlp_cross_patient_regression_gsc_stem_standard_test_metric_results.png', bbox_inches = 'tight')
     return None
 
-# This visualization can take portions of the predictions on the test set
-# and produce a heatmap.
 def visualize_se_heatmap(se_values, gene_names_in_test_set):
     '''
     Creates a heatmap visualization of portions of the number of genes 
@@ -1244,7 +1330,7 @@ def visualize_se_heatmap(se_values, gene_names_in_test_set):
     # The number and range of genes presented can be adjusted by slicing.
     genes_for_vis = se_values[:50]
     
-    ax = sn.heatmap(genes_for_vis.reshape(genes_for_vis.shape[0], 1), cmap = "YlGnBu", annot = True)
+    ax = sn.heatmap(genes_for_vis.reshape(genes_for_vis.shape[0], 1), cmap = 'YlGnBu', annot = True)
     
     # The number and range of genes presented can be adjusted by slicing as above.
     ax.set_yticklabels(gene_names_in_test_set[:50], rotation = 0)
@@ -1252,16 +1338,18 @@ def visualize_se_heatmap(se_values, gene_names_in_test_set):
     ax.tick_params(left=True, bottom=False)
     ax.set_xticklabels([])
     #ax.set_yticks(np.arange(len(gene_names_in_test_set[:10])), labels = gene_names_in_test_set[:10], rotation = 0)
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png', bbox_inches='tight')
-    #plt.show()
-    
+    plt.savefig(save_directory + '/mlp_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png', bbox_inches = 'tight')
+
     return None
 
-def visualize_testing_distributions(all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15):
+def visualize_testing_distributions(all_zero_true_expression,
+                                    true_expression_between_0_and_5,
+                                    true_expression_between_5_and_10,
+                                    true_expression_between_10_and_15):
     # Create dataframe for catagory counts. The dataframe will be used for visualization.
-    expression_counts_dataframe = pd.DataFrame({"expression catagory" : ["all_zero_true_expression", "true_expression_between_0_and_5", 
-                                                                    "true_expression_between_5_and_10", "true_expression_between_10_and_15" ],
-                                                "count": [len(all_zero_true_expression), len(true_expression_between_0_and_5), 
+    expression_counts_dataframe = pd.DataFrame({'expression catagory' : ['all_zero_true_expression', 'true_expression_between_0_and_5', 
+                                                                    'true_expression_between_5_and_10', 'true_expression_between_10_and_15' ],
+                                                'count': [len(all_zero_true_expression), len(true_expression_between_0_and_5), 
                                                      len(true_expression_between_5_and_10), len(true_expression_between_10_and_15)]})
 
     # Visualize number of genes in each catagory.
@@ -1275,43 +1363,49 @@ def visualize_testing_distributions(all_zero_true_expression, true_expression_be
     for i in ax.containers:
         ax.bar_label(i,)
 
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', bbox_inches='tight')
+    plt.savefig(save_directory +  '/mlp_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', bbox_inches = 'tight')
 
     return None
 
-def visualize_testing_set_mse_by_catagory(test_set_MSE, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15):
+def visualize_testing_set_mse_by_catagory(test_set_MSE,
+                                          all_zero_true_expression,
+                                          true_expression_between_0_and_5, 
+                                          true_expression_between_5_and_10, 
+                                          true_expression_between_10_and_15):
     
     # Create dataframe for the calculation of the mean SE. 
     # The dataframe will be used for visualization.
-    expression_mean_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : ["all zero", "between 0 and 5", 
-                                                                    "between 5 and 10", "between 10 and 15" ],
-                                              "mean squared error (MSE)" : [all_zero_true_expression[' prediction Squared Error (SE)'].mean(),
+    expression_mean_dataframe = pd.DataFrame({'expression catagory after log(2) transform' : ['all zero', 'between 0 and 5', 
+                                                                    'between 5 and 10', 'between 10 and 15'],
+                                              'mean squared error (MSE)' : [all_zero_true_expression[' prediction Squared Error (SE)'].mean(),
                                                     true_expression_between_0_and_5[' prediction Squared Error (SE)'].mean(),
                                                     true_expression_between_5_and_10[' prediction Squared Error (SE)'].mean(),
                                                     true_expression_between_10_and_15[' prediction Squared Error (SE)'].mean()]})
     
     plt.close()
-    sn.set_theme(style = "whitegrid")
+    sn.set_theme(style = 'whitegrid')
     fig, ax = plt.subplots(figsize = (8, 5))
-    ax = sn.barplot(data = expression_mean_dataframe, x = "expression catagory after log(2) transform", y = "mean squared error (MSE)")
+    ax = sn.barplot(data = expression_mean_dataframe, x = 'expression catagory after log(2) transform', y = 'mean squared error (MSE)')
     ax.set(title = 'Testing Set - MLP Cross Patient Regression MSE Per Expression Catagory')
-    ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation = '45')
     ax.axhline(test_set_MSE, label = f'MSE of entire test set: {test_set_MSE}')
     plt.legend(loc = 'upper left')
     for i in ax.containers:
         ax.bar_label(i,)
     
     
-    plt.savefig('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/mlp_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', bbox_inches = 'tight')
 
     return None
 
-def superenhancer_associated_genes_perturbation(model, X_test, Y_test, batch_size, gene_names_in_test_set):    
+def superenhancer_associated_genes_perturbation(model, X_test, Y_test,
+                                                batch_size,
+                                                gene_names_in_test_set):    
     colnames = ['gene name']
     #superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_associated_genes_in_predictions_for_perturbation.csv').drop(['Unnamed: 0'],axis=1)
     
     ## Load list of randomly chosen genes from test set to perturb signals.
-    superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_perturbation_comparison_random_sample_group.csv').drop(['Unnamed: 0'],axis=1)
+    superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_perturbation_comparison_random_sample_group.csv').drop(['Unnamed: 0'],axis = 1)
 
     # Create empty list to hold indexes of genes to be perturbed.
     superenhancer_indexes_in_test_set = []
@@ -1358,7 +1452,7 @@ def superenhancer_associated_genes_perturbation(model, X_test, Y_test, batch_siz
     SCC_results.append(perturbation_results[3])
     R2_results.append(perturbation_results[2])
 
-    with open('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/mlp_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write(f'Perturbation Test loss: {perturbation_results[0]},Perturbation Test PCC {perturbation_results[1]},Perturbation Test SCC {perturbation_results[3]},Perturbation Test R2 Score: {perturbation_results[2]}')
         
     print('PCC results (after perturbation),',PCC_results[0])
@@ -1370,7 +1464,29 @@ def superenhancer_associated_genes_perturbation(model, X_test, Y_test, batch_siz
 
 
 
-def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, batch_size, learning_rate, hidden_size_1, hidden_size_2, hidden_size_3, dropout_rate):
+def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, 
+         val_loss_dict, val_pcc_dict, val_r2_score_dict, 
+         val_scc_dict, gene_dict, num_genes, count, 
+         batch_size, learning_rate, hidden_size_1, 
+         hidden_size_2, hidden_size_3, dropout_rate):
+    
+        # Save directory - path where result files and figures are saved
+    global save_directory
+
+    if sys.argv[4:]:
+        # Save path given by the user in the 4th argument to the global variable
+        save_directory = sys.argv[4]
+        # Create the given directory
+        print(f'Using {save_directory} as the save directory for experiment output.')
+        os.makedirs(save_directory, exist_ok = True)
+
+    else:
+        save_directory = './cross_patient_regression_using_mlp_-_results_and_figures/'
+        print('Using the default save directory:')
+        print('./cross_patient_regression_using_mlp_-_results_and_figures/')
+        print('since a directory was not provided.')
+        os.makedirs(save_directory, exist_ok = True)
+
 
     # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
     validation = False
@@ -1398,7 +1514,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
     
     # Processing data for patient 2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
     
     # Call train_model() to train the model
     print("Training model")
@@ -1451,7 +1567,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     # to facilitate import into a spreadsheet or pandas
     # to sort values.
     #if os.path.exists('mlp_tuning_regression_baseline_gsc_stem_standard_log2.log'):
-    with open('pngs_mlp_cross_patient_pred_regression_gsc_stem_standard_log2/mlp_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/mlp_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A, %B %d")},')
         log.write(f'CURRENT COUNT: {count}, learning rate: {learning_rate}, batch size: {batch_size},')
         log.write(f'hidden layer 1 size: {hidden_size_1}, hidden layer 2 size: {hidden_size_2}, hidden layer 3 size: {hidden_size_3}, dropout_rate: {dropout_rate},')
@@ -1459,13 +1575,13 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
         log.write(f'Min val loss: {min_val_loss}, Max val PCC {max_val_pcc}, Max val SCC {max_val_scc}, Max val R2 Score: {max_val_r2_score},')
         log.write(f'Test loss: {results[0]}, Test PCC {results[1]}, Test SCC {results[3]}, Test R2 Score: {results[2]}')         
         
-    gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes)
+    gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes, test_set_indices)
     
     ##### NOTE Perturbation of gene features created during superenhancer analysis. #####
     ##### NOTE This function should be commented out if perturbation of genes is not desired. #####
     ##### NOTE X_test will be modified for the desired genes and then evaluated. #####
     ##### NOTE This will cause all downstream analysis to be done with the perturbed genes. #####
-    PCC_results, SCC_results, R2_results, loss_results, X_test = superenhancer_associated_genes_perturbation(model, X_test, Y_test, batch_size, gene_names_in_test_set)
+    ####PCC_results, SCC_results, R2_results, loss_results, X_test = superenhancer_associated_genes_perturbation(model, X_test, Y_test, batch_size, gene_names_in_test_set)
     
     
     visualize_metrics_together(history, validation_bool, count)
