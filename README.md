@@ -84,6 +84,6 @@ D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in
 
 E) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
 
-NOTE: 3/13/25 The 'script output save directory' argument and functionality is specific to the **XGBoost, Support Vector Machine, Gradient Boosting Regression and Multiple Linear Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
+NOTE: 3/13/25 The 'script output save directory' argument and functionality is specific to the **XGBoost, Multi-layered Perceptron, Support Vector Machine, Gradient Boosting Regression and Multiple Linear Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
 
 1. Mack SC, Singh I, Wang X, Hirsch R, Wu Q, Villagomez R, et al. Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma. J Exp Med. 20190404th ed. 2019 May 6;216(5):1071–90
