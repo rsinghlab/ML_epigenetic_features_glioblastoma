@@ -1,8 +1,26 @@
 '''
-This is a XGBoost algorithm model script. 
-It is configured for cross-patient prediction.
-It outputs results and visualizations for downstream
-analysis.
+This is a script to implement a 
+XGBoost algorithm model. 
+
+Goal: Predict gene expression value (regression) 
+from epigenetic signal inputs.
+
+It is configured for cross-patient prediction with
+logging, results output and visualizations for 
+downstream analysis.
+
+The script input is two patient datafiles 
+and an index file (all in numpy format). 
+
+The model is trained and validated (if applicable) on 
+the first position datafile. The model is then 
+tested on the second position file.
+
+This script is designed to accept 'raw' input values. It 
+applies the log2 scaling to the target variable before 
+the dataset split process and applies standardization 
+to the train, validation and test datasets seperately 
+after the split.  
 '''
 
 import sys
@@ -92,11 +110,15 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
 
         # Log2 scale the Y response variable.
         Y = np.log2(Y + 1)
+        print('max training Y value:', np.max(Y))
+        print('min training Y value:', np.min(Y))
+        print('range training Y values:', np.ptp(Y))
+
         
         # Shuffle the data
-        #ind = np.arange(0, num_genes)
+        # ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
 
         
         if validation == True:
@@ -133,7 +155,7 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
         # Perform calculation on each column of the seperate train, validation and test sets. 
         for dataset in datasets:
             for i in range(dataset.shape[2]): # Standardize the column values.
-                #dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1) # The degrees of freedom is set t
+                #dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
                 
             # The lines below are for PERTURBATION ANALYSIS ONLY. Uncomment the line that applies to the feature
             # with all zero values. The for loop line above needs to be commented when using one of the 
@@ -199,7 +221,7 @@ def get_data_patient_2(file_path, indices, gene_dict,
     if preprocess:
         print("Loading patient 2 dataset...")
         # Col 1 = gene names, 2 = bin number, 3-6 = features, 7 = labels
-        combined_diff = np.load(file_path, allow_pickle=True)
+        combined_diff = np.load(file_path, allow_pickle = True)
         
         # Get all the unique gene names
         gene_names = np.unique(combined_diff[:, 0])
@@ -254,16 +276,20 @@ def get_data_patient_2(file_path, indices, gene_dict,
 
         # Log2 scale the Y response variable
         Y = np.log2(Y + 1)
-
+        print('max test Y value:', np.max(Y))
+        print('min test Y value:', np.min(Y))
+        print('range test Y values:', np.ptp(Y))
+        
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
         # Original shuffle index file loaded
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
         print(X.shape)
         # Collect the indices that need to be deleted from the array
         # because the number of genes is lower than the 20,015 due to 
-        # keeping only the expressed genes in combined_diff
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
         print(combined_diff.shape)
         indexes = np.where(ind > X.shape[0] - 1)
         patient2_ind = np.delete(ind, indexes)
@@ -287,13 +313,9 @@ def get_data_patient_2(file_path, indices, gene_dict,
         #test_ind = ind
         test_ind = patient2_ind
         
-        #X_train = X[train_ind]
-        #X_val = X[val_ind]
         # Use all of the dataset for test.
         X_test = X[test_ind]
 
-        #Y_train = Y[train_ind]
-        #Y_val = Y[val_ind]
         # Use all of the dataset for test.
         Y_test = Y[test_ind]
 
@@ -305,7 +327,7 @@ def get_data_patient_2(file_path, indices, gene_dict,
 
         # Perform calculation on each column of the seperate train, validation and test sets.
         for dataset in datasets:
-            ####for i in range(dataset.shape[2]): ### Standardization on all columns.
+            for i in range(dataset.shape[2]): ### Standardization on all columns.
             # The lines below are for PERTURBATION ANALYSIS ONLY. Uncomment the line that applies to the feature
             # with all zero values. The for loop line above needs to be commented when using one of the 
             # lines below.
@@ -322,7 +344,7 @@ def get_data_patient_2(file_path, indices, gene_dict,
             #for i in [0,1,2]: ### NO standardization on column 3 - RNA Pol II for neural progenitor cell testing ONLY.
 
             #10/28/24
-            for i in [0]: ### NO standardization on columns 1,2,and 3 - CTCF, ATAC and RNA Pol II for Omnibus cell testing ONLY.
+            #for i in [0]: ### NO standardization on columns 1,2,and 3 - CTCF, ATAC and RNA Pol II for Omnibus cell testing ONLY.
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
 
@@ -619,6 +641,11 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes, shuffle_index
     #shuffle_index = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)    
     #shuffle_index = np.arange(0, 20015) 
 
+    ### Discontinue using the loaded index file because it 
+    ### is setup for 20,0015 genes and does not accomidate
+    ### the smaller set of genes in avaliable in the later
+    ### datasets used for cross-patient testing.
+
     # Invert order of keys and values for gene dictionary.
     inverted_gene_dict = {v:k for k, v in gene_dict.items()}
 
@@ -649,7 +676,8 @@ def calculate_se_for_predictions(y_true, y_pred):
     returns: Array of SE values the same length as Y_test.
     '''
 
-    prediction_se = np.round_(np.square(np.squeeze(y_true) - y_pred), decimals = 9)
+    prediction_se = np.round_(np.square(np.squeeze(y_true) - y_pred),
+                              decimals = 9)
 
     return prediction_se
 
@@ -844,9 +872,18 @@ def load_csv_and_create_dataframes():
     # Define gene expression catagories for analysis.
 
     all_zero_true_expression = prediction_dataframe[prediction_dataframe[' true RNAseq value'] == 0]
-    true_expression_between_0_and_5 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] > 0) & (prediction_dataframe[' true RNAseq value'] < 5)]
+    #true_expression_between_0_and_5 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] > 0) & (prediction_dataframe[' true RNAseq value'] < 5)]
+    
+    ## Modified 1/27/25 to produce new visualizations
+    ## Defining "low" expression range to be 0 to 5
+    true_expression_between_0_and_5 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] > 0) & (prediction_dataframe[' true RNAseq value'] <= 5)]
     true_expression_between_5_and_10 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] >= 5) & (prediction_dataframe[' true RNAseq value'] < 10)]
-    true_expression_between_10_and_15 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] >= 10) & (prediction_dataframe[' true RNAseq value'] <= 15)]
+    #true_expression_between_10_and_15 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] >= 10) & (prediction_dataframe[' true RNAseq value'] <= 15)]
+    
+    ## Modified 1/27/25 to produce new visualizations
+    ## Defining "high" expression range to be 10 and above
+    true_expression_between_10_and_15 = prediction_dataframe[(prediction_dataframe[' true RNAseq value'] >= 10)]
+                                                             
     #print(len(all_zero_expression) + len(between_0_and_5) + len(between_5_and_10) + len(between_10_and_15))
     
     return prediction_dataframe, \
@@ -1064,7 +1101,11 @@ def visualize_aggregated_input_profiles(test_dataset,
     #min_max_scaler = preprocessing.MinMaxScaler()
     for h in tqdm(range(len(heatmap_indexes))):
         mean_gene_vals = np.mean(test_dataset[heatmap_indexes[h]], axis = 0)
-        
+        # Script log file.
+        with open(save_directory + 
+                  '/H3K27Ac_signal_values.csv', 'a') as log:
+            log.write('\n' f'H3K27Ac values - {heatmap_names[h]}')
+            log.write('\n' f'{mean_gene_vals[:,0]}')                                                 
         # Normalize each feature seperately.
         # NOTE: Normalization has been disabled here because the input has already been standardized.
         #for i in range(mean_gene_vals.shape[1]):
@@ -1131,28 +1172,35 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     
     # Save directory - path where result files and figures are saved
     global save_directory
+    
+    now = datetime.datetime.now()
 
     if sys.argv[4:]:
         # Save path given by the user in the 4th argument to the global variable
         save_directory = sys.argv[4]
         # Create the given directory
-        print(f'Using {save_directory} as the save directory for experiment output.')
+        print('*'*25)
+        print(f'Using {save_directory} as the save directory.')
+        print('*'*25)
         os.makedirs(save_directory, exist_ok = True)
 
     else:
-        save_directory = './cross_patient_regression_using_xgboost_results_and_figures/'
+        save_directory = './cross_patient_regression_using_xgboost_-_results_and_figures_-_' + \
+        str(now.month) + '-' + str(now.day) + '-' + str(now.year) + '_' + \
+        'at_' + str(now.hour) + '-' + str(now.minute) + '-' + str(now.second)
+        print('*'*25)
         print('Using the default save directory:')
-        print('./cross_patient_regression_using_xgboost_results_and_figures')
+        print(f'{save_directory}')
         print('since a directory was not provided.')
+        print('*'*25)
         os.makedirs(save_directory, exist_ok = True)
     
     # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
     validation = False
     
     # Get file path from command line
-    # NOTE: file_path_1 is the data file for training and validating the model.    
+    # NOTE: file_path_1 is the datafile for training and validating the model.    
     # NOTE: file_path_2 is the datafile for testing the model.
-
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
@@ -1160,7 +1208,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
-    if count==0:
+    if count == 0:
         preprocess_bool = True
     else:
         preprocess_bool = False
@@ -1208,7 +1256,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
     else:
         model = train_model(X_train, X_val, Y_train, Y_val, 
-                            validation=validation_bool, 
+                            validation = validation_bool, 
                             learning_rates = learning_rates, 
                             n_estimators = n_estimators, 
                             max_depths = max_depths, 
@@ -1256,7 +1304,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
 
 
-    now = datetime.datetime.now()
+
     # Script log file.
     with open(save_directory + 
               '/xgboost_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
@@ -1356,7 +1404,7 @@ if __name__ == '__main__':
 
     for mc, cs, ss, ga, ne, md, lr in product(*param_values): 
         loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, test_PCC, test_SCC, test_R2 = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md, min_child_weight = mc, colsample_bytree = cs, subsample = ss, gamma = ga)
-        count+=1
+        count += 1
 
     #min_loss_count = min(loss_dict, key=loss_dict.get)
     #max_pcc_count = max(pcc_dict, key=pcc_dict.get)
