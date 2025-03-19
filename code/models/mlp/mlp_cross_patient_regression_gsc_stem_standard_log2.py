@@ -1470,21 +1470,29 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
          batch_size, learning_rate, hidden_size_1, 
          hidden_size_2, hidden_size_3, dropout_rate):
     
-        # Save directory - path where result files and figures are saved
+    # Save directory - path where result files and figures are saved
     global save_directory
 
+    now = datetime.datetime.now()
+    
     if sys.argv[4:]:
         # Save path given by the user in the 4th argument to the global variable
         save_directory = sys.argv[4]
         # Create the given directory
-        print(f'Using {save_directory} as the save directory for experiment output.')
+        print('*'*25)
+        print(f'Using {save_directory} as the save directory.')
+        print('*'*25)
         os.makedirs(save_directory, exist_ok = True)
 
     else:
-        save_directory = './cross_patient_regression_using_mlp_-_results_and_figures/'
+        save_directory = './cross_patient_regression_using_mlp_-_results_and_figures_-_' + \
+        str(now.month) + '-' + str(now.day) + '-' + str(now.year) + '_' + \
+        'at_' + str(now.hour) + '-' + str(now.minute) + '-' + str(now.second)
+        print('*'*25)
         print('Using the default save directory:')
-        print('./cross_patient_regression_using_mlp_-_results_and_figures/')
+        print(f'{save_directory}')
         print('since a directory was not provided.')
+        print('*'*25)
         os.makedirs(save_directory, exist_ok = True)
 
 
@@ -1560,8 +1568,6 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     print(f"SCC,{results[3]}")
     print('*'*25)
 
-
-    now = datetime.datetime.now()
     
     # Log file formatted with commas and one new line
     # to facilitate import into a spreadsheet or pandas
