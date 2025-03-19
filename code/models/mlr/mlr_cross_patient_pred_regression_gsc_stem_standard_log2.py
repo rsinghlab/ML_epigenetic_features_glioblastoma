@@ -1,14 +1,24 @@
 '''
 This is a multiple linear regression model 
 script composed using the Statsmodels 
-api and configured for cross-patient prediction.
+API and configured for cross-patient prediction.
 
+Goal: Predict gene expression value (regression) 
+from epigenetic signal inputs.
+
+It is configured for cross-patient prediction.
 The script input is two patient datafiles 
 and an index file (all in numpy format). 
 
 The model is trained and validated (if applicable) on 
 the first position datafile. The model is then 
 tested on the second position file.
+
+This script is designed to accept 'raw' input values. It 
+applies the log2 scaling to the target variable before 
+the dataset split process and applies standardization 
+to the train, validation and test datasets seperately 
+after the split.  
 '''
 import sys
 import numpy as np
@@ -399,6 +409,8 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     # Save directory - path where result files and figures are saved
     global save_directory
 
+    now = datetime.datetime.now()
+    
     if sys.argv[4:]:
         # Save path given by the user in the 4th argument to the global variable
         save_directory = sys.argv[4]
@@ -409,10 +421,12 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
         os.makedirs(save_directory, exist_ok = True)
 
     else:
-        save_directory = './cross_patient_regression_using_mlr_results/'
+        save_directory = './cross_patient_regression_using_mlr_-_results_-_' + \
+        str(now.month) + '-' + str(now.day) + '-' + str(now.year) + '_' + \
+        'at_' + str(now.hour) + '-' + str(now.minute) + '-' + str(now.second)
         print('*'*25)
         print('Using the default save directory:')
-        print('./cross_patient_regression_using_mlr_results')
+        print(f'{save_directory}')
         print('since a directory was not provided.')
         print('*'*25)
         os.makedirs(save_directory, exist_ok = True)
