@@ -119,38 +119,54 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
         # ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
         ind = np.load(indices, allow_pickle = True)
+        print('First X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 1 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient1_ind = np.delete(ind, indexes)
+        print('Patient 1 indeces shape : ')
+        print(patient1_ind.shape)
+
 
         
         if validation == True:
             # HYPERPARAMETER TUNING SPLITS
             # Create train (70%), validation (30%).
-            train_ind = ind[0: int(0.7*num_genes)]
-            val_ind = ind[int(0.7*num_genes):]
+            #train_ind = ind[0: int(0.7*num_genes)]
+            #val_ind = ind[int(0.7*num_genes):]
+            
+            train_ind = patient1_ind[0: int(0.7*num_genes)]
+            val_ind = patient1_ind[int(0.7*num_genes):]
+            
+            X_train = X[train_ind]
+            X_val = X[val_ind]
+        
+            Y_train = Y[train_ind]
+            Y_val = Y[val_ind]
+
+            # List of all datasets after split operation.
+            # datasets = [X_train, X_val, Y_train, Y_val]
+            # Standardization ONLY on input variables.
+            datasets = [X_train, X_val]
+
         
         else:
             # TESTING SPLITS
-            # The training set will have 99% of the 
+            # The training set will have 100% of the 
             # patient 1 data to train the model.
-            # The validation set is reduced to 1% but 
-            # still present to not break the function.
-            train_ind = ind
-            #train_ind = ind[0: int(0.99*num_genes)]
-            val_ind = ind[int(0.99*num_genes):]
+            train_ind = patient1_ind
+            X_train = X[train_ind]
+            Y_train = Y[train_ind]
+            datasets = [X_train]
 
         
-        X_train = X[train_ind]
-        X_val = X[val_ind]
         
 
-        Y_train = Y[train_ind]
-        Y_val = Y[val_ind]
-        
-
-        # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
-        # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
-        datasets = [X_train, X_val]
 
         # Perform calculation on each column of the seperate train, validation and test sets. 
         for dataset in datasets:
@@ -177,35 +193,40 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
         np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", 
                 X_train, 
                 allow_pickle = True)
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", 
-                X_val, 
-                allow_pickle = True)
-        
         np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", 
                 Y_train, 
                 allow_pickle = True)
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", 
-                Y_val, 
-                allow_pickle = True)
+
+        if validation == True:
+            np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val",
+                    X_val,
+                    allow_pickle = True)
+
+            np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", 
+                    Y_val,
+                    allow_pickle = True)
         
     
     else:
         X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
                           allow_pickle = True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
-                        allow_pickle = True)
-        
         Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
                           allow_pickle = True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
-                        allow_pickle = True)
+        
+        if validation == True:
+            X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                            allow_pickle = True)
+            Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy",
+                            allow_pickle = True)
         
     
         gene_dict = gene_dict
         num_genes = num_genes
 
-
-    return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    if validation == True:
+        return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    else:
+        return X_train, Y_train, gene_dict, num_genes
 
 def get_data_patient_2(file_path, indices, gene_dict, 
                        num_genes, preprocess):
@@ -285,23 +306,24 @@ def get_data_patient_2(file_path, indices, gene_dict,
         # np.random.shuffle(ind)
         # Original shuffle index file loaded
         ind = np.load(indices, allow_pickle = True)
+        print('Second X dataset shape')
         print(X.shape)
         # Collect the indices that need to be deleted from the array
         # because the number of genes is lower than the 20,015 due to 
         # experiments keeping only the expressed genes in combined_diff
         # or different numbers of genes in various test datasets. 
+        print('Patient 2 dataset shape : ') 
         print(combined_diff.shape)
         indexes = np.where(ind > X.shape[0] - 1)
         patient2_ind = np.delete(ind, indexes)
+        print('Patient 2 indeces shape : ')
         print(patient2_ind.shape)
 
         
         # 10/28/24 Custom shuffle index for Omnibus datasets loaded
-        #ind = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/\
-        #ind_shuffle_for_Omnibus_datasets.npy', allow_pickle=True)
+        #ind = np.load('../../../data/ind_shuffle_for_Omnibus_datasets.npy', allow_pickle=True)
         # 11/1/24 Custom shuffle index for Omnibus v3 datasets loaded
-        #ind = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/\
-        #ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)        
+        #ind = np.load('../../../data/ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)        
 
         # Splits for this patient data can be adjusted here.
         #train_ind = ind[0: int(0.7*num_genes)]
@@ -320,14 +342,13 @@ def get_data_patient_2(file_path, indices, gene_dict,
         Y_test = Y[test_ind]
 
         # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
         # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
         datasets = [X_test]
 
         # Perform calculation on each column of the seperate train, validation and test sets.
         for dataset in datasets:
             for i in range(dataset.shape[2]): ### Standardization on all columns.
+                
             # The lines below are for PERTURBATION ANALYSIS ONLY. Uncomment the line that applies to the feature
             # with all zero values. The for loop line above needs to be commented when using one of the 
             # lines below.
@@ -344,7 +365,8 @@ def get_data_patient_2(file_path, indices, gene_dict,
             #for i in [0,1,2]: ### NO standardization on column 3 - RNA Pol II for neural progenitor cell testing ONLY.
 
             #10/28/24
-            #for i in [0]: ### NO standardization on columns 1,2,and 3 - CTCF, ATAC and RNA Pol II for Omnibus cell testing ONLY.
+            ####for i in [0]: ### NO standardization on columns 1,2,and 3 
+            # - CTCF, ATAC and RNA Pol II for Omnibus cell testing ONLY.
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
 
@@ -379,17 +401,17 @@ def reset_random_seeds(seed):
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
-    #tf.random.set_seed(seed)
     np.random.RandomState(seed)
     np.random.seed(seed)
     random.seed(seed)
 
     return None
 
-def train_model(X_train, X_val, Y_train, Y_val, validation, 
+def train_model(X_train, Y_train, validation, 
                 learning_rates, n_estimators, max_depths, 
                 min_child_weight, colsample_bytree, 
-                subsample, gamma, count):
+                subsample, gamma, count, random_state, 
+                X_val, Y_val):
     """
     Implements and trains a XGBoost model.
     param X_train: the training inputs
@@ -400,18 +422,30 @@ def train_model(X_train, X_val, Y_train, Y_val, validation,
     """
 
     #random_state = count
-    random_state = 2
+    random_state = random_state
     
     # Set random seed
     reset_random_seeds(random_state)
+    
+    #4/4/25 Use only H3K27Ac for training and testing
+    X_train = X_train[:,:,0]
+    print('training and testing with 1 feature')
+    print('Shape of training X (features) data: ', X_train.shape)
+    
         
     # Reshape data into 2 dimensions.
     reshaped_X_train = X_train.reshape((X_train.shape[0], -1), 
                                        order = 'F')
-    reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
-                                   order = 'F')
     reshaped_Y_train = np.squeeze(Y_train)
-    reshaped_Y_val = np.squeeze(Y_val)
+    
+    if validation == True:
+        #11/5/25 Use only H3K27ac for training and testing
+        X_val = X_val[:,:,0]
+        print('training, validating and testing with 1 feature')
+        print('Shape of validation X (features) data: ', X_val.shape)
+        reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
+                                   order = 'F')
+        reshaped_Y_val = np.squeeze(Y_val)
     
     # Define model.
     xgb_reg = xgb.XGBRegressor(objective = 'reg:squarederror', 
@@ -445,12 +479,17 @@ def test_model(model, X_test, Y_test, learning_rates,
                n_estimators, max_depths, 
                min_child_weight, colsample_bytree, 
                subsample, gamma, count):
-    """
+    '''
     Evaluates the trained XGBoost model.
     param X_test: the testing inputs
     param Y_test: the testing labels
     return: testing metric results
-    """
+    '''
+    
+    #4/4/25 Use only H3K27ac for training and testing
+    X_test = X_test[:,:,0]
+    print('testing with 1 feature')
+    print('Shape of testing X (features) data: ', X_test.shape)
         
     # Reshape data into 2 dimensions.
     reshaped_X_test = X_test.reshape((X_test.shape[0], -1), 
@@ -472,15 +511,16 @@ def get_feature_importances(model):
     atac_importances = importances[100:150]
     rnapii_importances = importances[150:200]
     
+    print('Length of H3K27Ac importance array : ')
     print(len(h3k27ac_importances))
     h3k27ac_mean_importances = np.mean(h3k27ac_importances)
-    atac_mean_importances = np.mean(atac_importances)
     ctcf_mean_importances = np.mean(ctcf_importances)
+    atac_mean_importances = np.mean(atac_importances)
     rnapii_mean_importances = np.mean(rnapii_importances)
 
     h3k27ac_sum_importances = np.sum(h3k27ac_importances)
-    atac_sum_importances = np.sum(atac_importances)
     ctcf_sum_importances = np.sum(ctcf_importances)
+    atac_sum_importances = np.sum(atac_importances)
     rnapii_sum_importances = np.sum(rnapii_importances)
 
     # Create csv file to hold each epigenetic feature's mean importance.
@@ -488,8 +528,8 @@ def get_feature_importances(model):
               '/xgboost_cross_patient_regression_gsc_stem_standandard_mean_feature_importances.csv', 'w') \
               as log:
             log.write(f'H3K27ac mean importance,{h3k27ac_mean_importances}'),
-            log.write('\n' f'ATAC mean importance,{atac_mean_importances}'),
             log.write('\n' f'CTCF mean importance,{ctcf_mean_importances}'),
+            log.write('\n' f'ATAC mean importance,{atac_mean_importances}'),           
             log.write('\n' f'RNAPII mean importance,{rnapii_mean_importances}')
 
     # Create csv file to hold each epigenetic feature's sum importance.
@@ -497,8 +537,8 @@ def get_feature_importances(model):
               '/xgboost_cross_patient_regression_gsc_stem_standandard_sum_feature_importances.csv', 'w') \
             as log:
             log.write(f'H3K27ac sum importance,{h3k27ac_sum_importances}'),
-            log.write('\n' f'ATAC sum importance,{atac_sum_importances}'),
             log.write('\n' f'CTCF sum importance,{ctcf_sum_importances}'),
+            log.write('\n' f'ATAC sum importance,{atac_sum_importances}'),            
             log.write('\n' f'RNAPII sum importance,{rnapii_sum_importances}')
             
     return h3k27ac_mean_importances, atac_mean_importances, ctcf_mean_importances, \
@@ -512,12 +552,12 @@ def visualize_feature_importances_sums(h3k27ac_mean_importances, atac_mean_impor
                                   ctcf_sum_importances, rnapii_sum_importances):
     
     importance_sums = pd.DataFrame({'metric' : ['h3k27ac_sum_importances', 
-                                                'atac_sum_importances', 
                                                 'ctcf_sum_importances', 
+                                                'atac_sum_importances', 
                                                 'rnapii_sum_importances'],
                                    'value' : [h3k27ac_sum_importances, 
+                                              ctcf_sum_importances,
                                               atac_sum_importances, 
-                                              ctcf_sum_importances, 
                                               rnapii_sum_importances]})
 
     
@@ -561,6 +601,23 @@ def visualize_feature_importances_sums(h3k27ac_mean_importances, atac_mean_impor
         
     plt.savefig(save_directory + 
                 '/xgboost_sums_of_feature_importances.png', 
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
+    plt.savefig(save_directory + 
+                '/xgboost_sums_of_feature_importances.eps', 
+                format = 'eps',
+                dpi = 600,
+                bbox_inches = 'tight')
+    plt.savefig(save_directory + 
+                '/xgboost_sums_of_feature_importances.tiff', 
+                format = 'tiff',
+                dpi = 600,
+                bbox_inches = 'tight')
+    plt.savefig(save_directory + 
+                '/xgboost_sums_of_feature_importances.svg', 
+                format = 'svg',
+                dpi = 600,
                 bbox_inches = 'tight')
     
     return None
@@ -570,13 +627,13 @@ def visualize_feature_importances_means(h3k27ac_mean_importances, atac_mean_impo
                                   h3k27ac_sum_importances, atac_sum_importances,
                                   ctcf_sum_importances, rnapii_sum_importances):
 
-    importance_means = pd.DataFrame({'metric' : ['h3k27ac_mean_importances', 
-                                                'atac_mean_importances', 
-                                                'ctcf_mean_importances', 
-                                                'rnapii_mean_importances'],
-                                   'value' : [h3k27ac_mean_importances, 
-                                              atac_mean_importances, 
-                                              ctcf_mean_importances, 
+    importance_means = pd.DataFrame({'metric' : ['h3k27ac_mean_importances',
+                                                 'ctcf_mean_importances', 
+                                                 'atac_mean_importances',
+                                                 'rnapii_mean_importances'],
+                                   'value' : [h3k27ac_mean_importances,
+                                              ctcf_mean_importances,
+                                              atac_mean_importances,
                                               rnapii_mean_importances]})
     
     sn.set(style = 'white', font_scale = 1.5)
@@ -617,8 +674,28 @@ def visualize_feature_importances_means(h3k27ac_mean_importances, atac_mean_impo
                       va = 'center')
 
     plt.savefig(save_directory + 
-                '/xgboost_means_of_feature_importances.png', 
+                '/xgboost_means_of_feature_importances.png',
+                format = 'png',
+                dpi = 600,
                 bbox_inches = 'tight')
+    
+    plt.savefig(save_directory + 
+                '/xgboost_means_of_feature_importances.eps',
+                format = 'eps',
+                dpi = 600,
+                bbox_inches = 'tight')
+        
+    plt.savefig(save_directory + 
+                '/xgboost_means_of_feature_importances.tiff',
+                format = 'tiff',
+                dpi = 600,
+                bbox_inches = 'tight')
+
+    plt.savefig(save_directory + 
+                '/xgboost_means_of_feature_importances.svg',
+                format = 'svg',
+                dpi = 600,
+                bbox_inches = 'tight')    
     
     
     return None
@@ -636,9 +713,9 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes, shuffle_index
     # Load indices file used for shuffle operation.
     #shuffle_index = np.load(indices, allow_pickle=True)
     # 10/28/24 Load custom shuffle index for Omnibus datasets
-    #shuffle_index = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle_for_Omnibus_datasets.npy', allow_pickle=True)
+    #shuffle_index = np.load('../../../data/ind_shuffle_for_Omnibus_datasets.npy', allow_pickle=True)
     # 11/1/24 Custom shuffle index for Omnibus v3 datasets loaded
-    #shuffle_index = np.load('/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)    
+    #shuffle_index = np.load('../../../data/ind_shuffle_for_Omnibus_v3_datasets.npy', allow_pickle=True)    
     #shuffle_index = np.arange(0, 20015) 
 
     ### Discontinue using the loaded index file because it 
@@ -657,11 +734,15 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes, shuffle_index
     return gene_names_in_test_set
 
 def make_prediction(model, input_data):
-    """
+    '''
     param model: a trained model
     param input_data: model inputs
     return: the model's predictions for the provided input data
-    """
+    '''
+    #4/4/25 Use only H3K27Ac for training and testing
+    input_data = input_data[:,:,0]
+    print('training and testing with 1 feature')
+    print('prediction test dataset shape :', input_data.shape)
 
     reshaped_X_test = input_data.reshape((input_data.shape[0], -1), order = 'F')
     return np.asarray(model.predict(reshaped_X_test), dtype='float')
@@ -714,13 +795,13 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
 
     return None
 
-
-def visualize_training_validation_distributions(y_train, y_val):
+def visualize_training_distributions(y_train):
     '''
     Creates multiple visualizations for the 
-    training and validation sets. Visualizations are saved to the models image folder.
-    param y_train: the true (observed) RNAseq values for the test set.
-    param y_val: the true (observed) RNAseq values for the validation set.
+    training set. Visualizations are saved to the 
+    script's output folder.
+    param y_train: the true (observed) RNAseq values 
+                   for the test set.
 
     return: Nothing
     '''
@@ -731,24 +812,36 @@ def visualize_training_validation_distributions(y_train, y_val):
     
     plt.close()
     sn.set_theme(style = 'whitegrid')
-    plt.title('Training set genes\' RNAseq value counts.')
+    fig, ax = plt.subplots(figsize = (8, 5))
+    ax = sn.histplot(y_train, 
+                     legend = False, 
+                     palette = ['red'], 
+                     bins = 50)
+    ax.set(title = f'Training set genes\' RNAseq value counts.')
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
-    sn.histplot(y_train, legend = False, palette= ['red'], bins = 50)
-    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
+    
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.eps',
+                format = 'eps',
+                dpi = 600,
+                bbox_inches = 'tight')
+    
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.tiff',
+                format = 'tiff',
+                dpi = 600,
+                bbox_inches = 'tight')
+    
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.svg',
+                format = 'svg',
+                dpi = 600,
+                bbox_inches = 'tight')    
 
-    plt.close()
-    sn.set_theme(style = 'whitegrid')
-    plt.title('Validation set genes\' RNAseq value counts.')
-    plt.ylabel('count')
-    plt.xlabel('RNAseq value after log(2) transformation.')
-    sn.histplot(y_val, legend = False, palette = ['yellow'], bins = 50)
-    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
 
     training_RNAseq_dataframe = pd.Series(np.squeeze(y_train))
-    validation_RNAseq_dataframe = pd.Series(np.squeeze(y_val))
     
     # Define gene expression catagories for analysis.
 
@@ -757,10 +850,6 @@ def visualize_training_validation_distributions(y_train, y_val):
     training_true_expression_between_5_and_10 = training_RNAseq_dataframe[(training_RNAseq_dataframe >= 5) & (training_RNAseq_dataframe < 10)]
     training_true_expression_between_10_and_15 = training_RNAseq_dataframe[(training_RNAseq_dataframe >= 10) & (training_RNAseq_dataframe <= 15)]
     
-    validation_all_zero_true_expression = validation_RNAseq_dataframe[validation_RNAseq_dataframe  == 0]
-    validation_true_expression_between_0_and_5 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe > 0) & (validation_RNAseq_dataframe < 5)]
-    validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
-    validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
 
     training_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : 
                                                          ["all zero", 
@@ -772,6 +861,78 @@ def visualize_training_validation_distributions(y_train, y_val):
                                                                    len(training_true_expression_between_5_and_10),
                                                                    len(training_true_expression_between_10_and_15)]})
     
+
+    dataframes = [training_expression_counts_dataframe]
+    dataset_names = ['Training Set']
+    # Visualize number of genes in each catagory.
+    for l in range(len(dataframes)):
+        plt.close()
+        sn.set_theme(style = 'whitegrid')
+        sn.set(font_scale = 1)
+        fig, ax = plt.subplots(figsize = (8, 5))
+        ax = sn.barplot(data = dataframes[l], 
+                        x = "expression catagory after log(2) transformation", 
+                        y = "count")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
+        ax.set(title = f'{dataset_names[l]} - XGBoost Cross Patient Regression Expression Catagory Counts')
+        for i in ax.containers:
+            ax.bar_label(i,)
+        plt.savefig(save_directory + 
+                    '/xgboost_cross_patient_regression_' + dataset_names[l] + 
+                    '_Expression_Catagory_Counts.png',
+                    format = 'png',
+                    dpi = 600,
+                    bbox_inches = 'tight')
+
+    return None
+
+def visualize_validation_distributions(y_val):
+    '''
+    Creates multiple visualizations for the validation set
+    if available. Visualizations are saved to the script's
+    output image folder.
+    param y_val: the true (observed) RNAseq values for the validation set.
+
+    return: Nothing
+    '''
+    
+    plt.close()
+    sn.set_theme(style = 'whitegrid')
+    sn.set(font_scale = 1)
+    fig, ax = plt.subplots(figsize = (8, 5))
+    ax = sn.histplot(y_val, legend = False, palette = ['yellow'], bins = 50)
+    ax.set(title = f'Validation set genes\' RNAseq value counts.')
+    plt.ylabel('count')
+    plt.xlabel('RNAseq value after log(2) transformation.') 
+    plt.savefig(save_directory + '/Validation_set_genes_RNAseq_value_counts-_histogram_plot.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
+
+    plt.savefig(save_directory + '/Validation_set_genes_RNAseq_value_counts-_histogram_plot.eps',
+                format = 'eps',
+                dpi = 600,
+                bbox_inches = 'tight')
+    
+    plt.savefig(save_directory + '/Validation_set_genes_RNAseq_value_counts-_histogram_plot.tiff',
+                format = 'tiff',
+                dpi = 600,
+                bbox_inches = 'tight')
+    
+    plt.savefig(save_directory + '/Validation_set_genes_RNAseq_value_counts-_histogram_plot.svg',
+                format = 'svg',
+                dpi = 600,
+                bbox_inches = 'tight')
+    
+    validation_RNAseq_dataframe = pd.Series(np.squeeze(y_val))
+    
+    # Define gene expression catagories for analysis.
+    validation_all_zero_true_expression = validation_RNAseq_dataframe[validation_RNAseq_dataframe  == 0]
+    validation_true_expression_between_0_and_5 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe > 0) & (validation_RNAseq_dataframe < 5)]
+    validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
+    validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
+
+    
     validation_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transformation" : 
                                                            ["all zero", 
                                                             "between 0 and 5",
@@ -782,9 +943,8 @@ def visualize_training_validation_distributions(y_train, y_val):
                                                                      len(validation_true_expression_between_5_and_10),
                                                                      len(validation_true_expression_between_10_and_15)]})
 
-    dataframes = [training_expression_counts_dataframe, 
-                  validation_expression_counts_dataframe]
-    dataset_names = ['Training Set', 'Validation Set']
+    dataframes = [validation_expression_counts_dataframe]
+    dataset_names = ['Validation Set']
     # Visualize number of genes in each catagory.
     for l in range(len(dataframes)):
         plt.close()
@@ -795,13 +955,36 @@ def visualize_training_validation_distributions(y_train, y_val):
                         y = "count")
         ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
         ax.set(title = f'{dataset_names[l]} - XGBoost Cross Patient Regression Expression Catagory Counts')
-        sn.set(font_scale=1)
+        sn.set(font_scale = 1)
         for i in ax.containers:
             ax.bar_label(i,)
         plt.savefig(save_directory + 
                     '/xgboost_cross_patient_regression_' + dataset_names[l] + 
                     '_Expression_Catagory_Counts.png',
-                    bbox_inches='tight')
+                    format = 'png',
+                    dpi = 600,
+                    bbox_inches = 'tight')
+        
+        plt.savefig(save_directory + 
+                    '/xgboost_cross_patient_regression_' + dataset_names[l] + 
+                    '_Expression_Catagory_Counts.eps',
+                    format = 'eps',
+                    dpi = 600,
+                    bbox_inches = 'tight')
+        
+        plt.savefig(save_directory + 
+                    '/xgboost_cross_patient_regression_' + dataset_names[l] + 
+                    '_Expression_Catagory_Counts.tiff',
+                    format = 'tiff',
+                    dpi = 600,
+                    bbox_inches = 'tight')
+        
+        plt.savefig(save_directory + 
+                    '/xgboost_cross_patient_regression_' + dataset_names[l] + 
+                    '_Expression_Catagory_Counts.svg',
+                    format = 'svg',
+                    dpi = 600,
+                    bbox_inches = 'tight')        
 
     return None
 
@@ -827,11 +1010,14 @@ def visualize_model_test_results(result_1, result_2, result_3):
     sn.set(font_scale=1)
     for i in ax.containers:
         ax.bar_label(i,)
-    plt.savefig(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_metric_results.png', bbox_inches='tight')
+    plt.savefig(save_directory + 
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_metric_results.png', 
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
     return None
 
-# This visualization can take portions of the predictions on the test set
-# and produce a heatmap.
+
 def visualize_se_heatmap(se_values, gene_names_in_test_set):
     '''
     Creates a heatmap visualization of portions of the number of genes 
@@ -859,15 +1045,18 @@ def visualize_se_heatmap(se_values, gene_names_in_test_set):
     ax.set_xticklabels([])
     #ax.set_yticks(np.arange(len(gene_names_in_test_set[:10])), labels = gene_names_in_test_set[:10], rotation = 0)
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png', 
-                bbox_inches='tight')
-    #plt.show()
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
+
     
     return None
 
 def load_csv_and_create_dataframes():
     
-    prediction_dataframe = pd.read_csv(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision='round_trip')
+    prediction_dataframe = pd.read_csv(save_directory + '/xgboost_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 
+                                       float_precision='round_trip')
     
     # Define gene expression catagories for analysis.
 
@@ -925,8 +1114,10 @@ def visualize_testing_distributions(all_zero_true_expression,
         ax.bar_label(i,)
 
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', 
-                bbox_inches='tight')
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
     
     return None
 
@@ -962,8 +1153,10 @@ def visualize_testing_set_mse_by_catagory(test_set_MSE,
     for i in ax.containers:
         ax.bar_label(i,)   
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', 
-                bbox_inches='tight')
+                '/xgboost_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
     
     return None
 
@@ -984,9 +1177,11 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.xlabel('Gene index in test set')
     plt.scatter(np.arange(prediction_ses.shape[0]), prediction_ses)
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_mse_values.png', 
-                bbox_inches='tight')
-    #plt.show()
+                '/xgboost_cross_patient_regression_test_set_mse_values.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
+
 
     plt.close()
     sn.set_theme(style = 'whitegrid')
@@ -995,9 +1190,10 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.xlabel('Squared Error')
     sn.histplot(prediction_ses, legend = False, palette = ['orange'], bins = 50)
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_mse_values_-_histogram_plot.png', 
-                bbox_inches='tight')
-    #plt.show()
+                '/xgboost_cross_patient_regression_test_set_mse_values_-_histogram_plot.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
 
 
     plt.close()
@@ -1007,9 +1203,11 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.xlabel('True values')
     sn.histplot(y_true, legend = False, palette = ['red'], bins = 50)
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_true_RNAseq_values_-_histogram_plot.png', 
-                bbox_inches='tight')
-    #plt.show()
+                '/xgboost_cross_patient_regression_test_set_true_RNAseq_values_-_histogram_plot.png',
+                format = 'png',
+                dpi = 600, 
+                bbox_inches = 'tight')
+
 
     plt.close()
     sn.set_theme(style = 'whitegrid')
@@ -1018,9 +1216,11 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.xlabel('Predicted values')
     sn.histplot(y_pred, legend = False, palette = ['green'], bins = 50)
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', 
-                bbox_inches='tight')
-    #plt.show()
+                '/xgboost_cross_patient_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
+
 
     return None
 
@@ -1046,9 +1246,11 @@ def visualize_test_obs_pred(y_true, y_pred):
     plt.xlim(0, 15)
     plt.axis('square')
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted.png', 
+                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted.png',
+                format = 'png',
+                dpi = 600, 
                 bbox_inches='tight')
-    #plt.show()
+
 
     # Create dataframe of true and predicted values for visualization.
     data = {'True Values': np.squeeze(y_true), 'Predicted Values': np.squeeze(y_pred)}
@@ -1061,9 +1263,11 @@ def visualize_test_obs_pred(y_true, y_pred):
                  y = 'Predicted Values', 
                  data = df)
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png', 
+                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png',
+                format = 'png',
+                dpi = 600, 
                 bbox_inches='tight')
-    #plt.show()
+
 
     # Kernal Density Estimation joint plot
     plt.close()
@@ -1073,9 +1277,11 @@ def visualize_test_obs_pred(y_true, y_pred):
                  data = df, 
                  kind = 'kde')
     plt.savefig(save_directory + 
-                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', 
+                '/xgboost_cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png',
+                format = 'png',
+                dpi = 600, 
                 bbox_inches='tight')
-    #plt.show()
+
 
     return None
 
@@ -1141,10 +1347,29 @@ def visualize_aggregated_input_profiles(test_dataset,
         ax.set_yticks([0.5, 1.5, 2.5, 3.5])
         ax.set_yticklabels(['H3K27Ac','CTCF','ATAC','RNPPII'])
         ax.set_ylabel('epigenetic features')
-        ax.text(x = 0.5, y = 1.04, s = f'Feature values after standardization.', fontsize = 10, ha = 'center', va = 'bottom', transform = ax.transAxes)
-        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.png', bbox_inches='tight')
-        #plt.show()
-
+        ax.text(x = 0.5, y = 1.04, 
+                s = f'Feature values after standardization.', 
+                fontsize = 10, 
+                ha = 'center', 
+                va = 'bottom', 
+                transform = ax.transAxes)
+        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.png',
+                    format = 'png',
+                    dpi = 600,
+                    bbox_inches='tight')
+        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.eps',
+                    format = 'eps',
+                    dpi = 600,
+                    bbox_inches='tight')        
+        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.tiff',
+                    format = 'tiff',
+                    dpi = 600,
+                    bbox_inches='tight')
+        plt.savefig(save_directory + '/' + heatmap_names[h] + '_seaborn.svg',
+                    format = 'svg',
+                    dpi = 600,
+                    bbox_inches='tight')        
+        
         # Use seaborn to plot
         #plt.close
         #ax = sn.heatmap(mean_gene_vals)
@@ -1175,9 +1400,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     
     now = datetime.datetime.now()
 
-    if sys.argv[4:]:
-        # Save path given by the user in the 4th argument to the global variable
-        save_directory = sys.argv[4]
+    if sys.argv[5:]:
+        # Save path given by the user in the 5th argument to the global variable
+        save_directory = str(sys.argv[5])
         # Create the given directory
         print('*'*25)
         print(f'Using {save_directory} as the save directory.')
@@ -1201,10 +1426,17 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     # Get file path from command line
     # NOTE: file_path_1 is the datafile for training and validating the model.    
     # NOTE: file_path_2 is the datafile for testing the model.
+    # NOTE: indices is the 'shuffle_index' used to shuffle the datasets
+    # NOTE: random_state is the random seed for the run
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
-        
+    random_state = int(sys.argv[4])
+    print('*'*25)
+    print('The random seed is set to: ')
+    print(random_state)
+    print('*'*25)
+    
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
@@ -1219,13 +1451,24 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
         validation_bool = False
 
 
-    # Processing data for patient 1 file to produce train and validation sets.
-    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, 
-                                                                              indices, 
-                                                                              gene_dict, 
-                                                                              num_genes, 
-                                                                              preprocess = preprocess_bool, 
-                                                                              validation = validation_bool)
+    # Processing data for patient 1 file to produce train and validation sets OR training
+    # set only if validation == False
+    if validation_bool == True:
+        X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1,
+                                                                                  indices,
+                                                                                  gene_dict,
+                                                                                  num_genes,
+                                                                                  preprocess = preprocess_bool,
+                                                                                  validation = validation_bool)
+        
+    else:
+        X_train, Y_train, gene_dict, num_genes = get_data_patient_1(file_path_1,
+                                                                    indices,
+                                                                    gene_dict,
+                                                                    num_genes,
+                                                                    preprocess = preprocess_bool,
+                                                                    validation = validation_bool)
+        
 
     # Processing data for patient 2 file to produce test set.
     X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, 
@@ -1238,8 +1481,8 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     print("Training model...")
     
     if validation_bool == True:
-        model, PCC, SCC, R2  = train_model(X_train, X_val, Y_train, Y_val, 
-                                           validation=validation_bool, 
+        model, PCC, SCC, R2  = train_model(X_train, Y_train,  
+                                           validation = validation_bool, 
                                            learning_rates = learning_rates, 
                                            n_estimators = n_estimators, 
                                            max_depths = max_depths, 
@@ -1247,7 +1490,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
                                            colsample_bytree = colsample_bytree, 
                                            subsample = subsample, 
                                            gamma = gamma, 
-                                           count = count)
+                                           count = count,
+                                           random_state = random_state, 
+                                           X_val = X_val, Y_val = Y_val)
 
         max_val_pcc = PCC
         max_val_r2_score = R2
@@ -1255,7 +1500,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
         
 
     else:
-        model = train_model(X_train, X_val, Y_train, Y_val, 
+        model = train_model(X_train, Y_train, 
                             validation = validation_bool, 
                             learning_rates = learning_rates, 
                             n_estimators = n_estimators, 
@@ -1263,7 +1508,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
                             min_child_weight = min_child_weight, 
                             colsample_bytree = colsample_bytree, 
                             subsample = subsample, 
-                            gamma = gamma, count = count)
+                            gamma = gamma, count = count,
+                            random_state = random_state,
+                            X_val = None, Y_val = None)
         
         max_val_pcc = 'TRAINING SET ONLY'
         max_val_r2_score = 'TRAINING SET ONLY'
@@ -1327,14 +1574,14 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     print('*'*25)
     print('Mean')
     print(f"H3K27Ac Mean Importance,{h3k27ac_mean_importances}")
-    print(f"ATAC Mean Importance,{atac_mean_importances}")
     print(f"CTCF Mean Importance,{ctcf_mean_importances}")
+    print(f"ATAC Mean Importance,{atac_mean_importances}")
     print(f"RNAPII Mean Importance,{rnapii_mean_importances}")
     print('*'*25)
     print('Sum')
-    print(f"H3K27Ac Sum Importance,{h3k27ac_sum_importances}")
-    print(f"ATAC Sum Importance,{atac_sum_importances}")
+    print(f"H3K27Ac Sum Importance,{h3k27ac_sum_importances}")    
     print(f"CTCF Sum Importance,{ctcf_sum_importances}")
+    print(f"ATAC Sum Importance,{atac_sum_importances}")
     print(f"RNAPII Sum Importance,{rnapii_sum_importances}")
     print('*'*25)
     
@@ -1354,7 +1601,12 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     Y_pred = make_prediction(model, X_test)    
     prediction_se = calculate_se_for_predictions(Y_test, Y_pred)    
     prediction_csv(prediction_se, Y_test, Y_pred, gene_names_in_test_set)    
-    visualize_training_validation_distributions(Y_train, Y_val)    
+    
+    visualize_training_distributions(Y_train)
+    
+    if validation_bool == True:
+        visualize_validation_distributions(Y_val)
+    
     visualize_model_test_results(test_PCC, test_SCC, test_R2)
     visualize_se_heatmap(prediction_se, gene_names_in_test_set)
     prediction_dataframe, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15 = load_csv_and_create_dataframes()
@@ -1368,7 +1620,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     visualize_test_obs_pred(Y_test, Y_pred)
     visualize_aggregated_input_profiles(X_test, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15,prediction_dataframe)    
     
-    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, test_PCC, test_SCC, test_R2
+    #return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, test_PCC, test_SCC, test_R2
+
+    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model, test_PCC, test_SCC, test_R2
 
 if __name__ == '__main__':
 
@@ -1400,10 +1654,13 @@ if __name__ == '__main__':
        
     param_values = [v for v in parameters.values()]
 
-    count=0
+    count = 0
 
     for mc, cs, ss, ga, ne, md, lr in product(*param_values): 
-        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, test_PCC, test_SCC, test_R2 = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md, min_child_weight = mc, colsample_bytree = cs, subsample = ss, gamma = ga)
+        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model, test_PCC, test_SCC, test_R2 = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md, min_child_weight = mc, colsample_bytree = cs, subsample = ss, gamma = ga)
+
+#    for mc, cs, ss, ga, ne, md, lr in product(*param_values): 
+#        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, #num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, test_PCC, test_SCC, test_R2 = main(loss_dict, #pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, #learning_rates = lr, n_estimators = ne, max_depths = md, min_child_weight = mc, colsample_bytree = cs, subsample = ss, gamma = #ga)
         count += 1
 
     #min_loss_count = min(loss_dict, key=loss_dict.get)
