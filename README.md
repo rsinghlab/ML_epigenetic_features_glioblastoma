@@ -66,9 +66,9 @@ Support Vector Machine (SVR)
 Multiple Linear Regression (MLR)
 [code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
 
-### Script arguments:
-
-![script argument arrangement](assets/script_usage_image.jpeg)
+### Script arguments
+### XGBoost
+![script argument arrangement](assets/script_usage_image_1.jpeg)
 
 A) The script's path and filename.
 
@@ -82,7 +82,9 @@ C) The second data file's path and filename.
 
 D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in the "Datasets" section above.
 
-E) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
+E) The integer to be used as the random seed.
+
+F) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
 
 NOTE: 3/13/25 The 'script output save directory' argument and functionality is specific to the **XGBoost, Multi-layered Perceptron, Support Vector Machine, Gradient Boosting Regression and Multiple Linear Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
 
