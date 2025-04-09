@@ -84,7 +84,7 @@ D) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in
 
 E) The integer to be used as the random seed.
 
-F) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory ```'./cross_patient_regression_using_xgboost_results_and_figures'``` will be used.
+F) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified by the user than the default directory will be generated. The directory's name will include a data and time stamp for the script run.
 
 NOTE: 3/13/25 The 'script output save directory' argument and functionality is specific to the **XGBoost, Multi-layered Perceptron, Support Vector Machine, Gradient Boosting Regression and Multiple Linear Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
 
