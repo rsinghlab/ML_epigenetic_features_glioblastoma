@@ -160,7 +160,7 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
             # TESTING SPLITS
             # The training set will have 100% of the 
             # patient 1 data to train the model.
-            train_ind = ind
+            train_ind = patient1_ind
             X_train = X[train_ind]
             Y_train = Y[train_ind]
             datasets = [X_train]
