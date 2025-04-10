@@ -39,6 +39,16 @@ import math
 def get_data_patient_1(file_path, indices, gene_dict, num_genes,
                        preprocess, validation):
     '''
+    Patient 1's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform
+                      processing
+    param validation: boolean to determine if function shoud produce
+                      useable validation dataset    
     return: X_train, Y_train, X_val, Y_val; where X refers 
     to inputs and Y refers to labels.
     return: gene_dict (gene name dictionary)
@@ -105,41 +115,58 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
 
         # Log2 scale the Y response variable.
         Y = np.log2(Y + 1)
+        print('max training Y value:', np.max(Y))
+        print('min training Y value:', np.min(Y))
+        print('range training Y values:', np.ptp(Y))
         
         # Shuffle the data
         # ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
-
+        ind = np.load(indices, allow_pickle = True)
+        print('First X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 1 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient1_ind = np.delete(ind, indexes)
+        print('Patient 1 indeces shape : ')
+        print(patient1_ind.shape)
         
         if validation == True:
             # HYPERPARAMETER TUNING SPLITS
             # Create train (70%), validation (30%).
-            train_ind = ind[0: int(0.7*num_genes)]
-            val_ind = ind[int(0.7*num_genes):]
+            #train_ind = ind[0: int(0.7*num_genes)]
+            #val_ind = ind[int(0.7*num_genes):]
+            
+            train_ind = patient1_ind[0: int(0.7*num_genes)]
+            val_ind = patient1_ind[int(0.7*num_genes):]
+
+            X_train = X[train_ind]
+            X_val = X[val_ind]
         
+            Y_train = Y[train_ind]
+            Y_val = Y[val_ind]
+            
+            # List of all datasets after split operation.
+            # Standardization ONLY on input variables.
+            datasets = [X_train, X_val]
+
+
         else:
             # TESTING SPLITS
-            # The training set will have 99% of the 
+            # The training set will have 100% of the 
             # patient 1 data to train the model.
-            # The validation set is reduced to 1% but 
-            # still present to not break the function.
             train_ind = ind
-            #train_ind = ind[0: int(0.99*num_genes)]
-            val_ind = ind[int(0.99*num_genes):]
-
+            X_train = X[train_ind]
+            Y_train = Y[train_ind]
+            datasets = [X_train]
         
-        X_train = X[train_ind]
-        X_val = X[val_ind]
         
 
-        Y_train = Y[train_ind]
-        Y_val = Y[val_ind]
-        
-
-        # List of all datasets after split operation.
-        # Standardization ONLY on input variables.
-        datasets = [X_train, X_val]
 
         # Perform calculation on each column of the seperate train, validation and test sets. 
         for dataset in datasets:
@@ -150,12 +177,13 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
         np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train",
                 X_train, 
                 allow_pickle = True)
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val",
-                X_val,
-                allow_pickle = True)
-        
         np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train",
                 Y_train, 
+                allow_pickle = True)
+
+    if validation == True:
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val",
+                X_val,
                 allow_pickle = True)
         np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val",
                 Y_val, 
@@ -165,25 +193,37 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
     else:
         X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
                           allow_pickle = True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
-                        allow_pickle = True)
         
         Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
                           allow_pickle = True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+        
+        if validation == True:
+            X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
+            Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
                         allow_pickle = True)
         
     
         gene_dict = gene_dict
         num_genes = num_genes
 
-
-    return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    if validation == True:
+        return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    else:
+        return X_train, Y_train, gene_dict, num_genes
 
 def get_data_patient_2(file_path, indices, gene_dict, 
                        num_genes, preprocess):
     '''
-    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
+    Patient 2's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform                           processing    
+    return: X_test, Y_test; where X refers to inputs and Y refers to
+            labels.
     return: gene_dict (gene name dictionary)
     return: num_genes (the number of genes in the test set)
     return: patient2_ind (the indices for the patient 2 dataset. This
@@ -250,19 +290,24 @@ def get_data_patient_2(file_path, indices, gene_dict,
 
         # Log2 scale the Y response variable
         Y = np.log2(Y + 1)
+        print('max test Y value:', np.max(Y))
+        print('min test Y value:', np.min(Y))
+        print('range test Y values:', np.ptp(Y))
 
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
         ind = np.load(indices, allow_pickle = True)
-
+        print(X.shape)
         # Collect the indices that need to be deleted from the array
         # because the number of genes is lower than the 20,015 due to 
         # experiments keeping only the expressed genes in combined_diff
         # or different numbers of genes in various test datasets. 
+        print('Patient 2 dataset shape : ')
         print(combined_diff.shape)
         indexes = np.where(ind > X.shape[0] - 1)
         patient2_ind = np.delete(ind, indexes)
+        print('Patient 2 indeces shape : ')
         print(patient2_ind.shape)
 
         # Splits for this patient data can be adjusted here.
@@ -319,36 +364,40 @@ def get_data_patient_2(file_path, indices, gene_dict,
         gene_dict = gene_dict
         num_genes = num_genes
 
-    return X_test, Y_test, gene_dict, num_genes
+    return X_test, Y_test, gene_dict, num_genes, patient2_ind
 
 def reset_random_seeds(seed):
     '''
     Takes a given number and assigns it
     as a random seed to various generators and the
     os environment.
+    param seed: the random seed (integer) to be used
+    return: None
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
-    #tf.random.set_seed(seed)
     np.random.RandomState(seed)
     np.random.seed(seed)
     random.seed(seed)
 
     return None
     
-def train_model(X_train, X_val, Y_train, Y_val, 
-                validation, alpha, L1_wt):
-    """
+def train_model(X_train, Y_train, 
+                validation, alpha, L1_wt, random_state,
+                X_val, Y_val):
+    '''
     Implements and trains a MLR model.
     param X_train: the training inputs
     param Y_train: the training labels
     param X_val: the validation inputs
     param Y_val: the validation labels
-    return: a trained model and training history
-    """
+    param random_state: the random seed value for the model run
+    return: a trained model and validation metrics
+            if applicable
+    '''
 
     #random_state = count
-    random_state = 10
+    random_state = random_state
     
     # Set random seed
     reset_random_seeds(random_state)
@@ -356,10 +405,12 @@ def train_model(X_train, X_val, Y_train, Y_val,
     # Reshape data into 2 dimensions.
     reshaped_X_train = X_train.reshape((X_train.shape[0], -1), 
                                        order = 'F')
-    reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
-                                   order = 'F')
     reshaped_Y_train = np.squeeze(Y_train)
-    reshaped_Y_val = np.squeeze(Y_val)
+    
+    if validation == True:
+        reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
+                                   order = 'F')
+        reshaped_Y_val = np.squeeze(Y_val)
         
     # Version of model with no regularization.
     # est = sm.OLS(reshaped_Y_train, reshaped_X_train).fit()
@@ -381,12 +432,12 @@ def train_model(X_train, X_val, Y_train, Y_val,
         return est
     
 def test_model(model, X_test, Y_test):
-    """
-    Implements and trains a MLR model.
+    '''
+    Evaluates the MLR model.
     param X_test: the testing inputs
     param Y_test: the testing labels
     return: testing metric results
-    """
+    '''
     
     # Reshape data into 2 dimensions.
     reshaped_X_test = X_test.reshape((X_test.shape[0], -1), 
@@ -405,18 +456,38 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
          val_loss_dict, val_pcc_dict, val_r2_score_dict, 
          val_scc_dict, gene_dict, 
          num_genes, count, alpha, L1_wt):
+    '''
+    "Main" function for model script.
+    param loss_dict: dictionary of loss metric values
+    param pcc_dict: dictionary of PCC metric values
+    param r2_score_dict: dictionary of R2 metric values
+    param scc_dict: dictionary of SCC metric values
+    param val_loss_dict: dictionary of loss metric values
+    param val_pcc_dict: dictionary of PCC metric values
+    param val_r2_dict: dictionary of R2 metric values
+    param val_scc_dict: dictionary of SCC metric values
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param count: the script run count
+    param alpha: model hyperparameter
+    param L1_wt: model hyperparameter
+    return: model, indices, metric dictionaries, gene names, and number of
+            genes
+    '''
+
 
     # Save directory - path where result files and figures are saved
     global save_directory
 
     now = datetime.datetime.now()
     
-    if sys.argv[4:]:
-        # Save path given by the user in the 4th argument to the global variable
-        save_directory = sys.argv[4]
+    if sys.argv[5:]:
+        # Save path given by the user in the 5th argument to the global variable
+        save_directory = str(sys.argv[5])
         # Create the given directory
         print('*'*25)
-        print(f'Using {save_directory} as the save directory for experiment output.')
+        print(f'Using {save_directory} as the save directory.')
         print('*'*25)
         os.makedirs(save_directory, exist_ok = True)
 
@@ -440,7 +511,13 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
-        
+    random_state = int(sys.argv[4])
+    print('*'*25)
+    print('The random seed is set to: ')
+    print(random_state)
+    print('*'*25) 
+    
+    
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
@@ -456,36 +533,54 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
 
     # Processing data for patient 1 file to produce train and validation sets.
-    #X_train, X_val, X_test, Y_train, Y_val, Y_test, gene_dict, num_genes = get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess = preprocess_bool)
-    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
+    if validation_bool == True:
+        X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                                  indices, 
+                                                                                  gene_dict, 
+                                                                                  num_genes, 
+                                                                                  preprocess = preprocess_bool, 
+                                                                                  validation = validation_bool)
+        
+    else:
+        X_train, Y_train, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                                  indices, 
+                                                                                  gene_dict, 
+                                                                                  num_genes, 
+                                                                                  preprocess = preprocess_bool, 
+                                                                                  validation = validation_bool)
 
     # Processing data for patient 2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2,
+                                                                                indices, 
+                                                                                gene_dict, 
+                                                                                num_genes, 
+                                                                                preprocess = preprocess_bool)
 
     # Call train_model() to train the model
     print("Training model...")
     
     if validation_bool == True:
         model, PCC, SCC, R2  = train_model(X_train, 
-                                           X_val, 
                                            Y_train, 
-                                           Y_val, 
                                            validation = validation_bool, 
                                            alpha = alpha, 
-                                           L1_wt = L1_wt)
+                                           L1_wt = L1_wt,
+                                           random_state = random_state,
+                                           X_val = X_val, Y_val = Y_val)
         max_val_pcc = PCC
         max_val_r2_score = R2
         max_val_scc = SCC
         
 
     else:
-        model  = train_model(X_train, 
-                             X_val, 
-                             Y_train, 
-                             Y_val, 
+        model  = train_model(X_train,
+                             Y_train,
                              validation = validation_bool, 
                              alpha = alpha, 
-                             L1_wt = L1_wt)
+                             L1_wt = L1_wt,
+                             random_state = random_state,
+                             X_val = None, Y_val = None)
+        
         max_val_pcc = 'TRAINING SET ONLY'
         max_val_r2_score = 'TRAINING SET ONLY'
         max_val_scc = 'TRAINING SET ONLY'
@@ -508,9 +603,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     print(f"R2,{test_R2}")
     print('*'*25)
 
-
-
-    now = datetime.datetime.now()
+    # Create and populate log file
     with open(save_directory + '/mlr_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')     
         log.write(f'CURRENT COUNT: {count}, alpha: {alpha}, L1 weight: {L1_wt},')
@@ -519,7 +612,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
 
     
-    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model
+    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model
 
 if __name__ == '__main__':
 
@@ -546,23 +639,21 @@ if __name__ == '__main__':
        
     param_values = [v for v in parameters.values()]
 
-    count=0
+    count = 0
 
     for al, l1 in product(*param_values): 
-        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model = main(loss_dict, pcc_dict, r2_score_dict, 
+        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model = main(loss_dict, pcc_dict, r2_score_dict, 
         scc_dict, val_loss_dict, val_pcc_dict, 
         val_r2_score_dict, val_scc_dict, gene_dict, 
         num_genes, count, alpha = al, L1_wt = l1)
         count += 1
 
-    #min_loss_count = min(loss_dict, key=loss_dict.get)
     #max_pcc_count = max(pcc_dict, key=pcc_dict.get)
     #max_r2_count = max(r2_score_dict, key=r2_score_dict.get)
     #max_scc_count = max(scc_dict, key=scc_dict.get)
-    #min_val_loss_count = min(val_loss_dict, key=val_loss_dict.get)
-    max_val_pcc_count = max(val_pcc_dict, key=val_pcc_dict.get)
-    max_val_r2_count = max(val_r2_score_dict, key=val_r2_score_dict.get)
-    max_val_scc_count = max(val_scc_dict, key=val_scc_dict.get)
+    max_val_pcc_count = max(val_pcc_dict, key = val_pcc_dict.get)
+    max_val_r2_count = max(val_r2_score_dict, key = val_r2_score_dict.get)
+    max_val_scc_count = max(val_scc_dict, key = val_scc_dict.get)
     
 
     #print("\n Min training loss and count: ", min(loss_dict.values()), min_loss_count, "\n Max training pcc and count: ", max(pcc_dict.values()), max_pcc_count, "\n Max training R2 and count: ", max(r2_score_dict.values()), max_r2_count, "\n Max training scc and count: ", max(scc_dict.values()), max_scc_count, "\n Min val loss and count: ", min(val_loss_dict.values()), min_val_loss_count, "\n Max val pcc and count: ", max(val_pcc_dict.values()), max_val_pcc_count, "\n Max val R2 and count: ", max(val_r2_score_dict.values()), max_val_r2_count, "\n Max val scc and count: ", max(val_scc_dict.values()), max_val_scc_count)
