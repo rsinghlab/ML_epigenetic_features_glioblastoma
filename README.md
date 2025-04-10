@@ -3,7 +3,7 @@
 ## Datasets:
 Our study's two patient epigenetic marker files are provided in the [data](data) folder. Specifically, the latest versions of these GSC measurements are located in the [latest_versions_of_all_raw](data/latest_versions_of_all_raw) subfolder. Additionally, the [ind_shuffle.npy](data/ind_shuffle.npy) file is provided. This file was used to create consistent dataset splits for train, validation, and test sets.
 
-We ealuated cross-patient prediction methodology in our XGBoost-based model using our study's data and datasets created by adapting data from the study "Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma" (https://doi.org/10.1084/jem.20190196). (1) Their study's data is avaliable from the Gene ExpressionOmnibus under accessions [GSE119755](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119755) and [GSE119834](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119834).  
+We evaluated the cross-patient prediction methodology with all of the model scripts using this project's datasets. We performed extended evaluation and analysis with the XGBoost-based model using both this study's datasets and those created by adapting data from the study "Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma" (https://doi.org/10.1084/jem.20190196). (1) Their study's data is avaliable from the Gene ExpressionOmnibus under accessions [GSE119755](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119755) and [GSE119834](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119834).  
 
 ## Setup process:
 
@@ -67,7 +67,7 @@ Multiple Linear Regression (MLR)
 [code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
 
 ### Script arguments
-### XGBoost, Support Vector Machine, Multiple Linear Regression
+### XGBoost, Gradient Boosting Regression, Multi-layered Perceptron, Support Vector Machine, Multiple Linear Regression
 ![script argument arrangement](assets/script_usage_image_1.jpeg)
 
 A) The script's path and filename.
