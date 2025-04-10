@@ -1,7 +1,24 @@
 '''
-This is a Gradient Boosting Regression algorithm model. 
-It is intended to be one of the baseline models 
-for the cross patient regression analysis.
+This is a Gradient Boosting Regression algorithm model 
+implemented with the scikit-learn library.
+
+Goal: Predict gene expression value (regression) 
+from epigenetic signal inputs.
+
+It is configured for cross-patient prediction.
+The script input is two patient datafiles 
+and an index file (all in numpy format). 
+
+The model is trained and validated (if applicable) on 
+the first position datafile. The model is then 
+tested on the second position file.
+
+This script is designed to accept 'raw' input values. It 
+applies the log2 scaling to the target variable before 
+the dataset split process and applies standardization 
+to the train, validation and test datasets seperately 
+after the split.  
+
 '''
 
 import sys
@@ -18,7 +35,8 @@ from itertools import product
 import random
 import datetime
 
-def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, validation):
+def get_data_patient_1(file_path, indices, gene_dict, num_genes,
+                       preprocess, validation):
     '''
     Patient 1's data preperation for model input.
     param file_path: location of patient data
@@ -26,9 +44,14 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
     param gene_dict: dictionary of gene names and their 
                      position in data.
     param num_genes: the number of genes in a patient's dataset
-    param preprocess: boolean to determine if function should perform processing
-    param validation: boolean to determine if function shoud produce useable validation dataset
-    return: X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
+    param preprocess: boolean to determine if function should perform
+                      processing
+    param validation: boolean to determine if function shoud produce
+                      a useable validation dataset
+    return: X_train, X_val, Y_train, Y_val; where X 
+            refers to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
     '''
     
     if preprocess:
@@ -41,7 +64,8 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         gene_names = np.unique(combined_diff[:, 0])
         num_genes = len(gene_names)
         
-        # Create a dictionary to map each gene name to a unique index (number like 0, 1, 2,...,#genes-1)
+        # Create a dictionary to map each gene name to a 
+        # unique index (number like 0, 1, 2,...,#genes-1)
         gene_dict = dict(zip(gene_names, range(num_genes)))
 
         # Get the number of features (last column is labels - RNAseq)
@@ -56,7 +80,8 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
         Y = np.zeros((num_genes, 1))
 
         for name in tqdm(gene_names):
-            # Each subset is of shape 100 x 6 (number of 100bp bins x number of columns)
+            # Each subset is of shape 100 x 6 (number of 
+            # 100bp bins x number of columns)
             subset = combined_diff[np.where(combined_diff[:, 0] == name)]
 
             # Create matrix of data
@@ -69,8 +94,10 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
 
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's 
+            # RNAseq value (since all 50 bins
+            # have the same value when using the featureCounts 
+            # utility and process).
             Y[gene_ind] = data[0, -1]
 
             #NOTE: Evaluating different methods of determining the RNAseq value.
@@ -87,70 +114,105 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
 
         # Log2 scale the Y response variable.
         Y = np.log2(Y + 1)
+        print('max training Y value:', np.max(Y))
+        print('min training Y value:', np.min(Y))
+        print('range training Y values:', np.ptp(Y))
         
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
+        print('First X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 1 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient1_ind = np.delete(ind, indexes)
+        print('Patient 1 indeces shape : ')
+        print(patient1_ind.shape)
 
-        
         if validation == True:
             # HYPERPARAMETER TUNING SPLITS
             # Create train (70%), validation (30%).
-            train_ind = ind[0: int(0.7*num_genes)]
-            val_ind = ind[int(0.7*num_genes):]
+            #train_ind = ind[0: int(0.7*num_genes)]
+            #val_ind = ind[int(0.7*num_genes):]
+            
+            train_ind = patient1_ind[0: int(0.7*num_genes)]
+            val_ind = patient1_ind[int(0.7*num_genes):]
+            
+            X_train = X[train_ind]
+            X_val = X[val_ind]
+        
+            Y_train = Y[train_ind]
+            Y_val = Y[val_ind]
+            
+            # List of all datasets after split operation.
+            # Standardization ONLY on input variables.
+            datasets = [X_train, X_val]
         
         else:
             # TESTING SPLITS
             # The training set will have 99% of the patient 1 data to train the model.
             # The validation set is reduced to 1% but ket to not break the function.
-            train_ind = ind
-            #train_ind = ind[0: int(0.99*num_genes)]
-            val_ind = ind[int(0.99*num_genes):]
+            train_ind = patient1_ind
+            X_train = X[train_ind]
+            Y_train = Y[train_ind]
+            datasets = [X_train]
 
-        
-        X_train = X[train_ind]
-        X_val = X[val_ind]
-        
-
-        Y_train = Y[train_ind]
-        Y_val = Y[val_ind]
-        
-
-        # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
-        # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
-        datasets = [X_train, X_val]
-
+       
         # Perform calculation on each column of the seperate train, validation and test sets. 
         for dataset in datasets:
             for i in range(dataset.shape[2]):
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1) # The degrees of freedom is set t
                 
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", X_train, allow_pickle=True)
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", X_val, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", 
+                X_train, 
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", 
+                Y_train, 
+                allow_pickle = True)
+                
+        if validation == True:
+            np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", 
+                X_val, 
+                allow_pickle = True)
+            np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", 
+                Y_val, 
+                allow_pickle = True)
         
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", Y_train, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", Y_val, allow_pickle=True)
+        
+        
         
     
     else:
-        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
+        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
         
-        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        if validation == True:
+            X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
+            Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
         
     
         gene_dict = gene_dict
         num_genes = num_genes
 
 
-    return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    if validation == True:
+        return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    else:
+        return X_train, Y_train, gene_dict, num_genes
 
-def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
+def get_data_patient_2(file_path, indices, 
+                       gene_dict, num_genes, preprocess):
     '''
     Patient 2's data preperation for model input.
     param file_path: location of patient data
@@ -158,14 +220,22 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
     param gene_dict: dictionary of gene names and their 
                      position in data.
     param num_genes: the number of genes in a patient's dataset
-    param preprocess: boolean to determine if function should perform processing
-    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
+    param preprocess: boolean to determine if function 
+                      should perform processing
+    return: X_test, Y_test; where X refers 
+            to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
+    return: patient2_ind (the indices for the patient 2 dataset. This
+            may be a subset of the indices shuffle 
+            index if the number of genes in the test set 
+            is lower than the 20,015 in the training set) 
     '''
     
     if preprocess:
         print("Loading patient 2 dataset...")
         # Col 1 = gene names, 2 = bin number, 3-6 = features, 7 = labels
-        combined_diff = np.load(file_path, allow_pickle=True)
+        combined_diff = np.load(file_path, allow_pickle = True)
         
         # Get all the unique gene names
         gene_names = np.unique(combined_diff[:, 0])
@@ -187,7 +257,8 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
         for name in tqdm(gene_names):
 
-            # Each subset is of shape 100 x 6 (number of 100bp bins x number of columns)
+            # Each subset is of shape 100 x 6 (number of 
+            # 100bp bins x number of columns)
             subset = combined_diff[np.where(combined_diff[:, 0] == name)]
 
             # Create matrix of data. 
@@ -199,8 +270,10 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
    
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's 
+            # RNAseq value (since all 50 bins
+            # have the same value when using the 
+            # featureCounts utility and process).
             Y[gene_ind] = data[0, -1]
 
             #NOTE: Evaluating different methods of determining the RNAseq value.
@@ -216,35 +289,40 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
         # Log2 scale the Y response variable
         Y = np.log2(Y + 1)
+        print('max test Y value:', np.max(Y))
+        print('min test Y value:', np.min(Y))
+        print('range test Y values:', np.ptp(Y))
 
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 2 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient2_ind = np.delete(ind, indexes)
+        print('Patient 2 indeces shape : ')
+        print(patient2_ind.shape)
 
         # Splits for this patient data can be adjusted here.
-        #train_ind = ind[0: int(0.7*num_genes)]
-        #val_ind = ind[int(0.7*num_genes):int(0.85*num_genes)]
         #test_ind = ind[int(0.85*num_genes):]
 
+        # NOTE: Use entire dataset for test set.
+        test_ind = patient2_ind
 
-        # NOTE: For now use entire dataset for test set.
-        test_ind = ind
-
-        #X_train = X[train_ind]
-        #X_val = X[val_ind]
         # Use all of the dataset for test.
         X_test = X[test_ind]
 
-        #Y_train = Y[train_ind]
-        #Y_val = Y[val_ind]
         # Use all of the dataset for test.
         Y_test = Y[test_ind]
 
         # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
         # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
         datasets = [X_test]
 
         # Perform calculation on each column of the seperate train, validation and test sets.
@@ -255,17 +333,23 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
                 
 
-        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", X_test, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", Y_test, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                X_test, 
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                Y_test, 
+                allow_pickle = True)
 
     else:
-        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
-        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
+        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle = True)
+        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle = True)
 
         gene_dict = gene_dict
         num_genes = num_genes
 
-    return X_test, Y_test, gene_dict, num_genes
+    return X_test, Y_test, gene_dict, num_genes, patient2_ind
 
 
 def reset_random_seeds(seed):
@@ -284,7 +368,10 @@ def reset_random_seeds(seed):
 
     return None
 
-def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_estimators, max_depths):
+def train_model(X_train, Y_train, 
+                validation, learning_rates, 
+                n_estimators, max_depths, random_state, 
+                X_val, Y_val):
     '''
     Implements and trains a Gradirnt Boosting Regression model.
     param X_train: the training inputs
@@ -294,21 +381,32 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_es
     param validation: boolean to determine if function shoud make use of validation dataset
     param learning_rates: model hyperparemeter
     param n_estimators: model hyperparameter
-    param max_depths: model hyperparameter    
-    return: trained model and validation metrics if appropriate
+    param max_depths: model hyperparameter
+    param random_state: the random seed value for model run
+    return: trained model and validation metrics if
+            applicable.
     '''
 
+    random_state = random_state
+    
     # Set random seed
-    reset_random_seeds(10)
+    reset_random_seeds(random_state)
     
     # Reshape data into 2 dimensions.
-    reshaped_X_train = X_train.reshape((X_train.shape[0], -1), order = 'F')
-    reshaped_X_val = X_val.reshape((X_val.shape[0], -1), order = 'F')
+    reshaped_X_train = X_train.reshape((X_train.shape[0], -1),
+                                       order = 'F')
     reshaped_Y_train = np.squeeze(Y_train)
-    reshaped_Y_val = np.squeeze(Y_val)
     
-    regr = GBR(learning_rate = learning_rates, n_estimators = n_estimators, max_depth = max_depths)
+    if validation == True:
+        reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
+                                   order = 'F')
+        reshaped_Y_val = np.squeeze(Y_val)
+    
+    regr = GBR(learning_rate = learning_rates, 
+               n_estimators = n_estimators, 
+               max_depth = max_depths)
     regr.fit(reshaped_X_train, reshaped_Y_train)
+    
     if validation == True:
         Y_pred = regr.predict(reshaped_X_val)
         PCC = pearsonr(reshaped_Y_val, Y_pred)[0]
@@ -323,7 +421,7 @@ def train_model(X_train, X_val, Y_train, Y_val, validation, learning_rates, n_es
     
 
 
-def test_model(model, X_test, Y_test, learning_rates, n_estimators, max_depths):
+def test_model(model, X_test, Y_test):
     '''
     Test/prediction function for Gradient Boosting Regression model.
     param model: trained model
@@ -336,7 +434,8 @@ def test_model(model, X_test, Y_test, learning_rates, n_estimators, max_depths):
     '''
         
     # Reshape data into 2 dimensions.
-    reshaped_X_test = X_test.reshape((X_test.shape[0], -1), order = 'F')
+    reshaped_X_test = X_test.reshape((X_test.shape[0], -1),
+                                     order = 'F')
     reshaped_Y_test = np.squeeze(Y_test)
     
     Y_pred = model.predict(reshaped_X_test)
@@ -362,23 +461,31 @@ def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val
     param learning_rates: model hyperparemeter
     param n_estimators: model hyperparameter
     param max_depths: model hyperparameter
-    return: model, datasets, indices, metric dictionaries, gene names, and number of genes 
+    return: model, indices, metric dictionaries and number of genes 
     '''
     # Save directory - path where result files and figures are saved
     global save_directory
+    
+    now = datetime.datetime.now()
 
-    if sys.argv[4:]:
-        # Save path given by the user in the 4th argument to the global variable
-        save_directory = sys.argv[4]
+    if sys.argv[5:]:
+        # Save path given by the user in the 5th argument to the global variable
+        save_directory = str(sys.argv[5])
         # Create the given directory
-        print(f'Using {save_directory} as the save directory for experiment output.')
-        os.makedirs(save_directory, exist_ok=True)
+        print('*'*25)
+        print(f'Using {save_directory} as the save directory.')
+        print('*'*25)
+        os.makedirs(save_directory, exist_ok = True)
 
     else:
-        save_directory = './cross_patient_regression_using_gbr_results_and_figures'
+        save_directory = './cross_patient_regression_using_gbr_-_results_-_' + \
+        str(now.month) + '-' + str(now.day) + '-' + str(now.year) + '_' + \
+        'at_' + str(now.hour) + '-' + str(now.minute) + '-' + str(now.second)
+        print('*'*25)
         print('Using the default save directory:')
-        print('./cross_patient_regression_using_gbr_results_and_figures')
+        print(f'{save_directory}')
         print('since a directory was not specified.')
+        print('*'*25)
         os.makedirs(save_directory, exist_ok=True)
     
     # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
@@ -388,11 +495,16 @@ def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
+    random_state = int(sys.argv[4])
+    print('*'*25)
+    print('The random seed is set to: ')
+    print(random_state)
+    print('*'*25)
         
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
     print("Processing data")
-    if count==0:
+    if count == 0:
         preprocess_bool = True
     else:
         preprocess_bool = False
@@ -404,16 +516,40 @@ def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val
 
 
     # Processing data for patient 1 file to produce train and validation sets.
-    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
+    if validation == True:
+        X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                                  indices, 
+                                                                                  gene_dict, 
+                                                                                  num_genes, 
+                                                                                  preprocess = preprocess_bool, 
+                                                                                  validation = validation_bool)
+        
+    else:
+        X_train, Y_train, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                                  indices, 
+                                                                                  gene_dict, 
+                                                                                  num_genes, 
+                                                                                  preprocess = preprocess_bool, 
+                                                                                  validation = validation_bool)
+        
 
     # Processing data for patient 2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2,
+                                                                                indices, 
+                                                                                gene_dict, 
+                                                                                num_genes, 
+                                                                                preprocess = preprocess_bool)
 
     # Call train_model() to train the model
     print("Training model...")
     
     if validation_bool == True:
-        model, PCC, SCC, R2  = train_model(X_train, X_val, Y_train, Y_val, validation=validation_bool, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths)
+        model, PCC, SCC, R2  = train_model(X_train, Y_train, 
+                                           validation = validation_bool,
+                                           learning_rates = learning_rates, 
+                                           n_estimators = n_estimators, max_depths = max_depths, 
+                                           random_state = random_state, 
+                                           X_val = X_val, Y_val = Y_val)
 
         max_val_pcc = PCC
         max_val_r2_score = R2
@@ -421,7 +557,14 @@ def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val
         
 
     else:
-        model = train_model(X_train, X_val, Y_train, Y_val, validation=validation_bool, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths)
+        model = train_model(X_train, Y_train, 
+                            validation = validation_bool, 
+                            learning_rates = learning_rates, 
+                            n_estimators = n_estimators, 
+                            max_depths = max_depths,
+                            random_state = random_state,
+                            X_val = None, Y_val = None)
+        
         max_val_pcc = 'TRAINING SET ONLY'
         max_val_r2_score = 'TRAINING SET ONLY'
         max_val_scc = 'TRAINING SET ONLY'
@@ -437,16 +580,13 @@ def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val
     print('*'*25)
     print("Evaluating model...")
     print('*'*25)
-    test_PCC, test_SCC, test_R2  = test_model(model, X_test, Y_test, learning_rates = learning_rates, n_estimators = n_estimators, max_depths = max_depths)
+    test_PCC, test_SCC, test_R2  = test_model(model, X_test, Y_test)
     print("Test results:")
     print(f"PCC,{test_PCC}")
     print(f"SCC,{test_SCC}")
     print(f"R2,{test_R2}")
     print('*'*25)
 
-
-
-    now = datetime.datetime.now()
     # Script log file.
     with open(save_directory + '/gbr_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')
@@ -457,7 +597,7 @@ def main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val
 
 
     
-    return pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model
+    return pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model
 
 if __name__ == '__main__':
 
@@ -487,6 +627,6 @@ if __name__ == '__main__':
     count=0
 
     for lr, ne, md in product(*param_values): 
-        pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model = main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md)
-        count+=1
+        pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model = main(pcc_dict, r2_score_dict, scc_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, learning_rates = lr, n_estimators = ne, max_depths = md)
+        count += 1
  
