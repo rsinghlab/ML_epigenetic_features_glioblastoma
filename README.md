@@ -67,7 +67,7 @@ Multiple Linear Regression (MLR)
 [code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
 
 ### Script arguments
-### XGBoost
+### XGBoost, Multiple Linear Regression
 ![script argument arrangement](assets/script_usage_image_1.jpeg)
 
 A) The script's path and filename.
