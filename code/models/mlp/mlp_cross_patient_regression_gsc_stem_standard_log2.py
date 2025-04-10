@@ -1,6 +1,6 @@
 '''
 This is a script to implement 
-a multi-layer perceptron algorithm model.
+a Multi-layered Perceptron algorithm model.
 
 Goal: Predict gene expression value (regression) 
 from epigenetic signal inputs.
@@ -54,6 +54,16 @@ import pandas as pd
 def get_data_patient_1(file_path, indices, gene_dict, num_genes,
                        preprocess, validation):
     '''
+    Patient 1's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform
+                      processing
+    param validation: boolean to determine if function shoud produce
+                      useable validation dataset
     return: X_train, Y_train, X_val, Y_val; where X refers 
     to inputs and Y refers to labels.
     return: gene_dict (gene name dictionary)
@@ -119,44 +129,58 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
 
         # Log2 scale the Y response variable.
         Y = np.log2(Y + 1)
+        print('max training Y value:', np.max(Y))
+        print('min training Y value:', np.min(Y))
+        print('range training Y values:', np.ptp(Y))
         
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
         ind = np.load(indices, allow_pickle = True)
-
+        print('First X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 1 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient1_ind = np.delete(ind, indexes)
+        print('Patient 1 indeces shape : ')
+        print(patient1_ind.shape)
         
         if validation == True:
             # HYPERPARAMETER TUNING SPLITS
             # Create train (70%), validation (30%).
-            train_ind = ind[0: int(0.7*num_genes)]
-            val_ind = ind[int(0.7*num_genes):]
+            #train_ind = ind[0: int(0.7*num_genes)]
+            #val_ind = ind[int(0.7*num_genes):]
+            
+            train_ind = patient1_ind[0: int(0.7*num_genes)]
+            val_ind = patient1_ind[int(0.7*num_genes):]
+
+            X_train = X[train_ind]
+            X_val = X[val_ind]
+        
+            Y_train = Y[train_ind]
+            Y_val = Y[val_ind]
+            
+            # List of all datasets after split operation.
+            # Standardization ONLY on input variables.
+            datasets = [X_train, X_val]
         
         else:
             # TESTING SPLITS
-            # The training set will have 99% of the 
+            # The training set will have 100% of the 
             # patient 1 data to train the model.
-            # The validation set is reduced to 1% but 
-            # still present to not break the function.
-            train_ind = ind
-            #train_ind = ind[0: int(0.99*num_genes)]
-            val_ind = ind[int(0.99*num_genes):]
-
-        
-        X_train = X[train_ind]
-        X_val = X[val_ind]
-        
-
-        Y_train = Y[train_ind]
-        Y_val = Y[val_ind]
-        
-
-        # List of all datasets after split operation.
-        # Standardization ONLY on input variables.
-        datasets = [X_train, X_val]
-
+            train_ind = patient1_ind
+            X_train = X[train_ind]
+            Y_train = Y[train_ind]
+            datasets = [X_train]
+            
+            
         # Perform calculation on each column of 
-        # the seperate train, validation and test sets. 
+        # the seperate train and validation sets. 
         for dataset in datasets:
             for i in range(dataset.shape[2]):
                 # Standardize the column values.
@@ -165,12 +189,15 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
         np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train",
                 X_train, 
                 allow_pickle = True)
+        
+        
+    np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train",
+                Y_train, 
+                allow_pickle = True)
+    
+    if validation == True:
         np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val",
                 X_val, 
-                allow_pickle = True)
-        
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train",
-                Y_train, 
                 allow_pickle = True)
         np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val",
                 Y_val, 
@@ -180,12 +207,14 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
     else:
         X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
                           allow_pickle = True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
-                        allow_pickle = True)
-        
+                
         Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
                           allow_pickle = True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+        
+        if validation == True:
+            X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
+            Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
                         allow_pickle = True)
         
     
@@ -193,12 +222,23 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes,
         num_genes = num_genes
 
 
-    return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    if validation == True:
+        return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    else:
+        return X_train, Y_train, gene_dict, num_genes
 
 def get_data_patient_2(file_path, indices, gene_dict, 
                        num_genes, preprocess):
     '''
-    return: X_test, Y_test; where X refers to inputs and Y refers to labels.
+    Patient 2's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform                           processing 
+    return: X_test, Y_test; where X refers to inputs and Y refers to
+            labels.
     return: gene_dict (gene name dictionary)
     return: num_genes (the number of genes in the test set)
     return: patient2_ind (the indices for the patient 2 dataset. This
@@ -264,20 +304,25 @@ def get_data_patient_2(file_path, indices, gene_dict,
 
         # Log2 scale the Y response variable
         Y = np.log2(Y + 1)
+        print('max test Y value:', np.max(Y))
+        print('min test Y value:', np.min(Y))
+        print('range test Y values:', np.ptp(Y))
 
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
         ind = np.load(indices, allow_pickle = True)
-        
+        print(X.shape)
         # Collect the indices that need to be deleted from the array
         # because the number of genes is lower than the 20,015 due to 
         # experiments keeping only the expressed genes in combined_diff
         # or different numbers of genes in various test datasets. 
-        #print(combined_diff.shape)
+        print('Patient 2 dataset shape : ')
+        print(combined_diff.shape)
         indexes = np.where(ind > X.shape[0] - 1)
         patient2_ind = np.delete(ind, indexes)
-        #print(patient2_ind.shape)
+        print('Patient 2 indeces shape : ')
+        print(patient2_ind.shape)
 
 
         # Splits for this patient data can be adjusted here.
@@ -286,17 +331,13 @@ def get_data_patient_2(file_path, indices, gene_dict,
         #test_ind = ind[int(0.85*num_genes):]
 
 
-        # NOTE: For now use entire dataset for test set.
+        # NOTE: Use entire dataset for test set.
         #test_ind = ind
         test_ind = patient2_ind
 
-        #X_train = X[train_ind]
-        #X_val = X[val_ind]
         # Use all of the dataset for test.
         X_test = X[test_ind]
 
-        #Y_train = Y[train_ind]
-        #Y_val = Y[val_ind]
         # Use all of the dataset for test.
         Y_test = Y[test_ind]
 
@@ -351,6 +392,7 @@ def reset_random_seeds(seed):
     Takes a given number and assigns it
     as a random seed to various generators and the
     os environment.
+    param seed: the random seed (integer) to be used
     return: None
     '''
 
@@ -361,16 +403,27 @@ def reset_random_seeds(seed):
 
     return None
 
-def train_model(X_train, X_val, Y_train, Y_val, 
+def train_model(X_train, Y_train,
                 epochs, validation, batch_size, 
                 learning_rate, hidden_size_1, hidden_size_2,
-                hidden_size_3, dropout_rate):
+                hidden_size_3, dropout_rate, random_state,
+                X_val, Y_val):
     """
     Implements and trains the model
     param X_train: the training inputs
     param Y_train: the training labels
     param X_val: the validation inputs
     param Y_val: the validation labels
+    param epochs: model hyperparameter
+    param validation: bool for the use of a validation
+                      set
+    param batch_size: model hyperparameter
+    param learning_rate: model hyperparameter
+    param hidden_size_1: model hyperparameter
+    param hidden_size_2: model hyperparameter
+    param hidden_size_3: model hyperparameter
+    param dropout_rate: model hyperparameter
+    param random_state: the random state for the model run
     return: a trained model and training history
     """
 
@@ -407,12 +460,13 @@ def train_model(X_train, X_val, Y_train, Y_val,
 
     
     # Plot model architecture
-    # plot_model(model, 
-    #           to_file = './mlp_cross_patient_pred_regression_model.png', 
-    # show_shapes = True, dpi = 300)
+    plot_model(model, 
+               to_file = save_directory + '/mlp_cross_patient_pred_regression_model.png', 
+               show_shapes = True, 
+               dpi = 600)
     
     # Set random seed
-    reset_random_seeds(10)
+    reset_random_seeds(random_state)
     
     # Compile model
     model.compile(loss='mean_squared_error',
@@ -438,6 +492,12 @@ def train_model(X_train, X_val, Y_train, Y_val,
 
     return model, history
 
+def test_model(model, X_test, Y_test, batch_size):
+    
+    results = model.evaluate(X_test, Y_test, batch_size = batch_size)
+    
+    return results
+
 def pearson_r(y_true, y_pred):
     '''
     Calculate Pearson Correlation Coefficient (PCC) as a 
@@ -446,8 +506,8 @@ def pearson_r(y_true, y_pred):
     '''
     x = y_true
     y = y_pred
-    mx = K.mean(x, axis=0)
-    my = K.mean(y, axis=0)
+    mx = K.mean(x, axis = 0)
+    my = K.mean(y, axis = 0)
     xm, ym = x - mx, y - my
     r_num = K.sum(xm * ym)
     x_square_sum = K.sum(xm * xm)
@@ -541,7 +601,8 @@ def calculate_prediction_high_low(mse, y_true, y_pred):
     #return highly_expressed_low_mse_group
     
 
-def get_gene_names(gene_dict, indices, test_data_shape, num_genes, shuffle_index):
+def get_gene_names(gene_dict, indices, test_data_shape, 
+                   num_genes, shuffle_index):
     '''
     Using the input dictionary of gene names and their unique identifier
     this function extracts the genes and their index position in X_test data
@@ -606,9 +667,11 @@ def visualize_pcc(history, validation, count):
     plt.ylabel('PCC')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train pcc', 'validation pcc'], loc='upper left')
+        plt.legend(['train pcc', 'validation pcc'], 
+                   loc = 'upper left')
     else:
-        plt.legend(['train pcc'], loc='upper left')
+        plt.legend(['train pcc'],
+                   loc = 'upper left')
     plt.savefig(save_directory + '/mlp_pcc_' + str(count) + '.png')
 
     return None
@@ -628,9 +691,11 @@ def visualize_scc(history, validation, count):
     plt.ylabel('SCC')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train scc', 'validation scc'], loc='upper left')
+        plt.legend(['train scc', 'validation scc'],
+                   loc = 'upper left')
     else:
-        plt.legend(['train scc'], loc='upper left')
+        plt.legend(['train scc'], 
+                   loc = 'upper left')
     plt.savefig(save_directory + '/mlp_scc_' + str(count) + '.png')
 
     return None
@@ -649,9 +714,11 @@ def visualize_rsquare(history, validation, count):
     plt.ylabel('R2')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train R2', 'validation R2'], loc = 'upper left')
+        plt.legend(['train R2', 'validation R2'], 
+                   loc = 'upper left')
     else:
-        plt.legend(['train R2'], loc = 'upper left')
+        plt.legend(['train R2'],
+                   loc = 'upper left')
     plt.savefig(save_directory + '/mlp_rsquare_' + str(count) + '.png')
 
     return None
@@ -675,22 +742,22 @@ def visualize_metrics_together(history, validation, count):
     plt.ylabel('Metric value')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train scc', 'train pcc', 'train R^2', 'validation scc', 'validation pcc', 'validation R^2'], loc='lower right')
+        plt.legend(['train scc', 'train pcc', 'train R^2', 'validation scc', 'validation pcc', 'validation R^2'], 
+                   loc = 'lower right')
     else:
-        plt.legend(['train scc', 'train pcc', 'train R^2'], loc='upper left')
+        plt.legend(['train scc', 'train pcc', 'train R^2'], 
+                   loc = 'upper left')
     plt.savefig(save_directory + '/mlp_metrics_' + str(count) + '.png')
 
     return None
 
 
-def visualize_training_validation_distributions(y_train, y_val, validation):
+def visualize_training_distributions(y_train):
     '''
     Creates multiple visualizations for the for the 
-    training and validation sets. 
+    training set. 
     param y_train: the true (observed) RNAseq values
                    for the test set.
-    param y_val: the true (observed) RNAseq values 
-                 for the validation set.
 
     return: Nothing. Visualizations are saved to
     the script save folder.
@@ -705,21 +772,18 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
     plt.title('Training set genes\' RNAseq value counts.')
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
-    sn.histplot(y_train, legend = False, palette= ['red'], bins = 50)
-    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png')
-    #plt.show()
+    sn.histplot(y_train, 
+                legend = False, 
+                palette= ['red'], 
+                bins = 50)
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png',
+               format = 'png', 
+                dpi = 600, 
+                bbox_inches = 'tight')
 
-    plt.close()
-    sn.set_theme(style = 'whitegrid')
-    plt.title('Validation set genes\' RNAseq value counts.')
-    plt.ylabel('count')
-    plt.xlabel('RNAseq value after log(2) transformation.')
-    sn.histplot(y_val, legend = False, palette = ['darkblue'], bins = 50)
-    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png')
-    #plt.show()
 
     training_RNAseq_dataframe = pd.Series(np.squeeze(y_train))
-    validation_RNAseq_dataframe = pd.Series(np.squeeze(y_val))
+
     
     # Define gene expression catagories for analysis.
 
@@ -733,24 +797,9 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
                                             'count': [len(training_all_zero_true_expression), len(training_true_expression_between_0_and_5), 
                                                      len(training_true_expression_between_5_and_10), len(training_true_expression_between_10_and_15)]})
 
-    if validation == True:
     
-        validation_all_zero_true_expression = validation_RNAseq_dataframe[validation_RNAseq_dataframe  == 0]
-        validation_true_expression_between_0_and_5 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe > 0) & (validation_RNAseq_dataframe < 5)]
-        validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
-        validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
-
-        validation_expression_counts_dataframe = pd.DataFrame({'expression catagory after log(2) transformation' : ['all zero', 'between 0 and 5', 
-                                                                    'between 5 and 10', 'between 10 and 15'],
-                                                "count": [len(validation_all_zero_true_expression), len(validation_true_expression_between_0_and_5), 
-                                                     len(validation_true_expression_between_5_and_10), len(validation_true_expression_between_10_and_15)]})
-
-        dataframes = [training_expression_counts_dataframe, validation_expression_counts_dataframe]
-        dataset_names = ['Training Set', 'Validation Set']
-    
-    else:
-        dataframes = [training_expression_counts_dataframe]
-        dataset_names = ['Training Set']
+    dataframes = [training_expression_counts_dataframe]
+    dataset_names = ['Training Set']
     
         
     # Visualize number of genes in each catagory.
@@ -761,10 +810,77 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
         ax = sn.barplot(data = dataframes[l], x = 'expression catagory after log(2) transformation', y = 'count')
         ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
         ax.set(title = f'{dataset_names[l]} - MLP Cross Patient Regression Expression Catagory Counts')
+        sn.set(font_scale = 1)
+        for i in ax.containers:
+            ax.bar_label(i,)
+        plt.savefig(save_directory + '/' + dataset_names[l] + 'Expression_Catagory_Counts.png', 
+                    format = 'png', 
+                    dpi = 600, 
+                    bbox_inches='tight')
+
+    return None
+
+def visualize_validation_distributions(y_val):
+    '''
+    Creates multiple visualizations for the for the 
+    training and validation sets. 
+    param y_train: the true (observed) RNAseq values
+                   for the test set.
+    param y_val: the true (observed) RNAseq values 
+                 for the validation set.
+
+    return: Nothing. Visualizations are saved to
+    the script save folder.
+    '''
+    
+    plt.close()
+    sn.set_theme(style = 'whitegrid')
+    plt.title('Validation set genes\' RNAseq value counts.')
+    plt.ylabel('count')
+    plt.xlabel('RNAseq value after log(2) transformation.')
+    sn.histplot(y_val, 
+                legend = False, 
+                palette = ['darkblue'], 
+                bins = 50)
+    plt.savefig(save_directory + '/Validation_set_genes_RNAseq_value_counts-_histogram_plot.png', 
+                format = 'png', 
+                dpi = 600, 
+                bbox_inches = 'tight')
+
+    validation_RNAseq_dataframe = pd.Series(np.squeeze(y_val))
+    
+    # Define gene expression catagories for analysis.
+    validation_all_zero_true_expression = validation_RNAseq_dataframe[validation_RNAseq_dataframe  == 0]
+    validation_true_expression_between_0_and_5 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe > 0) & (validation_RNAseq_dataframe < 5)]
+    validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
+    validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
+
+    validation_expression_counts_dataframe = pd.DataFrame({'expression catagory after log(2) transformation' : ['all zero', 'between 0 and 5', 
+                                                                    'between 5 and 10', 'between 10 and 15'],
+                                                "count": [len(validation_all_zero_true_expression), len(validation_true_expression_between_0_and_5), 
+                                                     len(validation_true_expression_between_5_and_10), len(validation_true_expression_between_10_and_15)]})
+
+    dataframes = [validation_expression_counts_dataframe]
+    dataset_names = ['Validation Set']
+    
+        
+    # Visualize number of genes in each catagory.
+    for l in range(len(dataframes)):
+        plt.close()
+        sn.set_theme(style = 'whitegrid')
+        fig, ax = plt.subplots(figsize = (8, 5))
+        ax = sn.barplot(data = dataframes[l], 
+                        x = 'expression catagory after log(2) transformation', 
+                        y = 'count')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
+        ax.set(title = f'{dataset_names[l]} - MLP Cross Patient Regression Expression Catagory Counts')
         sn.set(font_scale=1)
         for i in ax.containers:
             ax.bar_label(i,)
-        plt.savefig(save_directory + '/' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
+        plt.savefig(save_directory + '/' + dataset_names[l] + 'Expression_Catagory_Counts.png', 
+                    format = 'png', 
+                    dpi = 600, 
+                    bbox_inches='tight')
 
     return None
 
@@ -773,6 +889,10 @@ def visualize_prediction_mse(prediction_mses, y_true, y_pred):
     '''
     Creates multiple visualizations for the mean 
     squared error values for the test set.
+    param prediction_ses: Array of calculated Squared Error 
+                          values per gene.
+    param y_true: the true (observed) RNAseq values.
+    param y_pred: the model's predicted values.
 
     returns: Nothing. The visualizations will saved to the script
              save directory.
@@ -783,7 +903,9 @@ def visualize_prediction_mse(prediction_mses, y_true, y_pred):
     plt.ylabel('MSE')
     plt.xlabel('Gene index in test set')
     plt.scatter(np.arange(prediction_mses.shape[0]), prediction_mses)
-    plt.savefig(save_directory + '/MLP_regression_test_set_mse_values.png', bbox_inches = 'tight')
+    plt.savefig(save_directory + '/MLP_regression_test_set_mse_values.png', 
+                format = 'png',
+                bbox_inches = 'tight')
 
     plt.close()
     sn.set_theme(style = 'whitegrid')
@@ -791,7 +913,9 @@ def visualize_prediction_mse(prediction_mses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('Mean Squared Error')
     sn.histplot(prediction_mses, legend = False, color = 'red', bins = 50)
-    plt.savefig(save_directory + '/MLP_regression_test_set_mse_values_-_histogram_plot.png', bbox_inches = 'tight')
+    plt.savefig(save_directory + '/MLP_regression_test_set_mse_values_-_histogram_plot.png', 
+                format = 'png',
+                bbox_inches = 'tight')
 
 
     plt.close()
@@ -800,7 +924,9 @@ def visualize_prediction_mse(prediction_mses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('True values')
     sn.histplot(y_true, legend = False, color = 'blue', bins = 50)
-    plt.savefig(save_directory + '/MLP_regression_test_set_true_RNAseq_values_-_histogram_plot.png', bbox_inches = 'tight')
+    plt.savefig(save_directory + '/MLP_regression_test_set_true_RNAseq_values_-_histogram_plot.png',
+                format = 'png',
+                bbox_inches = 'tight')
 
 
     plt.close()
@@ -809,7 +935,9 @@ def visualize_prediction_mse(prediction_mses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('Predicted values')
     sn.histplot(y_pred, legend = False, color = 'red', bins = 50)
-    plt.savefig(save_directory + '/MLP_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', bbox_inches = 'tight')
+    plt.savefig(save_directory + '/MLP_regression_test_set_predicted_RNAseq_values_-_histogram_plot.png',
+                format = 'png',
+                bbox_inches = 'tight')
 
     return None
 
@@ -1402,10 +1530,9 @@ def superenhancer_associated_genes_perturbation(model, X_test, Y_test,
                                                 batch_size,
                                                 gene_names_in_test_set):    
     colnames = ['gene name']
-    #superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_associated_genes_in_predictions_for_perturbation.csv').drop(['Unnamed: 0'],axis=1)
     
     ## Load list of randomly chosen genes from test set to perturb signals.
-    superenhancer_dataframe = pd.read_csv('/gpfs/data/rsingh47/Tapinos_Data/cross_patient_superenhancer_perturbation_analysis_results/gene_lists_for_perturbation/superenhancer_perturbation_comparison_random_sample_group.csv').drop(['Unnamed: 0'],axis = 1)
+    superenhancer_dataframe = pd.read_csv('../../../data/').drop(['Unnamed: 0'],axis = 1)
 
     # Create empty list to hold indexes of genes to be perturbed.
     superenhancer_indexes_in_test_set = []
@@ -1475,9 +1602,9 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
     now = datetime.datetime.now()
     
-    if sys.argv[4:]:
-        # Save path given by the user in the 4th argument to the global variable
-        save_directory = sys.argv[4]
+    if sys.argv[5:]:
+        # Save path given by the user in the 5th argument to the global variable
+        save_directory = str(sys.argv[5])
         # Create the given directory
         print('*'*25)
         print(f'Using {save_directory} as the save directory.')
@@ -1503,6 +1630,11 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
+    random_state = int(sys.argv[4])
+    print('*'*25)
+    print('The random seed is set to: ')
+    print(random_state)
+    print('*'*25) 
 
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
@@ -1519,33 +1651,78 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
         
     # Processing data for patient 1 file to produce train and validation sets.
-    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
+    if validation == True:
+        X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                              indices, 
+                                                                              gene_dict, 
+                                                                              num_genes, 
+                                                                              preprocess = preprocess_bool, 
+                                                                              validation = validation_bool)
+        
+    else:
+        X_train, Y_train, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                              indices, 
+                                                                              gene_dict, 
+                                                                              num_genes, 
+                                                                              preprocess = preprocess_bool, 
+                                                                              validation = validation_bool)
     
     # Processing data for patient 2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, 
+                                                                                indices, 
+                                                                                gene_dict, 
+                                                                                num_genes, 
+                                                                                preprocess = preprocess_bool)
     
     # Call train_model() to train the model
     print("Training model")
-    model, history = train_model(X_train, X_val, Y_train, Y_val, epochs=150, validation = validation_bool, batch_size=batch_size, learning_rate=learning_rate, hidden_size_1=hidden_size_1, hidden_size_2=hidden_size_2, hidden_size_3=hidden_size_3, dropout_rate=dropout_rate)
-
-
-
-    min_loss = min(history.history['loss'])
-    max_pcc = max(history.history['pearson_r'])
-    max_r2_score = max(history.history['r_square'])
-    max_scc = max(history.history['spearman_r'])
-    if validation_bool == True:
+    
+    if validation == True:
+        model, history = train_model(X_train, Y_train, 
+                                     epochs = 150, 
+                                     validation = validation_bool,
+                                     batch_size = batch_size,
+                                     learning_rate = learning_rate,
+                                     hidden_size_1 = hidden_size_1,
+                                     hidden_size_2 = hidden_size_2,
+                                     hidden_size_3 = hidden_size_3,
+                                     dropout_rate = dropout_rate,
+                                     random_state = random_state,
+                                     X_val = X_val, Y_val = Y_val)
+        
         min_val_loss = min(history.history['val_loss'])
         max_val_pcc = max(history.history['val_pearson_r'])
         max_val_r2_score = max(history.history['val_r_square'])
         max_val_scc = max(history.history['val_spearman_r'])
+
+     
     else:
+        model, history = train_model(X_train, Y_train, 
+                                     epochs = 150, 
+                                     validation = validation_bool,
+                                     batch_size = batch_size,
+                                     learning_rate = learning_rate,
+                                     hidden_size_1 = hidden_size_1,
+                                     hidden_size_2 = hidden_size_2,
+                                     hidden_size_3 = hidden_size_3,
+                                     dropout_rate = dropout_rate,
+                                     random_state = random_state,
+                                     X_val = None, Y_val = None)
+        
         min_val_loss = 'TRAINING SET ONLY'
         max_val_pcc = 'TRAINING SET ONLY'
         max_val_r2_score = 'TRAINING SET ONLY'
         max_val_scc = 'TRAINING SET ONLY'
 
+    # Collect max or min values from model
+    # history over epochs
+    min_loss = min(history.history['loss'])
+    max_pcc = max(history.history['pearson_r'])
+    max_r2_score = max(history.history['r_square'])
+    max_scc = max(history.history['spearman_r'])
 
+    # Collect metrics over each model run.
+    # Primarily used for hyperparameter tuning.
     loss_dict[count] = min_loss
     pcc_dict[count] = max_pcc
     r2_score_dict[count] = max_r2_score
@@ -1560,7 +1737,10 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
     print('*'*25)
     print("Evaluating model...")
     print('*'*25)
-    results  = model.evaluate(X_test, Y_test, batch_size=batch_size)
+    
+    # Evaluate model
+    results = test_model(model, X_test, Y_test, batch_size = batch_size)
+    
     print("Test results:")
     print(f"loss,{results[0]}")
     print(f"PCC,{results[1]}")
@@ -1643,7 +1823,10 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
      
     #visualize_correlation(X_test, highly_expressed_low_mse_group, lowly_expessed_low_mse_group, highly_expressed_high_mse_group, lowly_expressed_high_mse_group)
     
-    visualize_training_validation_distributions(Y_train, Y_val, validation_bool)
+    visualize_training_distributions(Y_train)
+    
+    if validation_bool == True:
+        visualize_validation_distributions(Y_val)
     
     visualize_testing_distributions(all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15)
     
@@ -1662,7 +1845,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict,
 
     
     
-    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, history, results, validation_bool
+    return loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model, history, results, validation_bool
 
 if __name__ == '__main__':
 
@@ -1695,7 +1878,7 @@ if __name__ == '__main__':
     count=0
 
     for lr, bs, hs1, hs2, hs3, dr in product(*param_values): 
-        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, X_train, X_val, X_test, Y_train, Y_val, Y_test, indices, model, history, results, validation_bool = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, batch_size=bs, learning_rate=lr, hidden_size_1=hs1, hidden_size_2=hs2, hidden_size_3=hs3, dropout_rate=dr)
+        loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, indices, model, history, results, validation_bool = main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, batch_size = bs, learning_rate = lr, hidden_size_1 = hs1, hidden_size_2 = hs2, hidden_size_3 = hs3, dropout_rate = dr)
         count+=1
 
     min_loss_count = min(loss_dict, key=loss_dict.get)
