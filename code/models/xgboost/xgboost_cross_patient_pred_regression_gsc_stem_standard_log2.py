@@ -428,9 +428,9 @@ def train_model(X_train, Y_train, validation,
     reset_random_seeds(random_state)
     
     #4/4/25 Use only H3K27Ac for training and testing
-    X_train = X_train[:,:,0]
-    print('training and testing with 1 feature')
-    print('Shape of training X (features) data: ', X_train.shape)
+    #X_train = X_train[:,:,0]
+    #print('training and testing with 1 feature')
+    #print('Shape of training X (features) data: ', X_train.shape)
     
         
     # Reshape data into 2 dimensions.
@@ -440,9 +440,9 @@ def train_model(X_train, Y_train, validation,
     
     if validation == True:
         #11/5/25 Use only H3K27ac for training and testing
-        X_val = X_val[:,:,0]
-        print('training, validating and testing with 1 feature')
-        print('Shape of validation X (features) data: ', X_val.shape)
+        #X_val = X_val[:,:,0]
+        #print('training, validating and testing with 1 feature')
+        #print('Shape of validation X (features) data: ', X_val.shape)
         reshaped_X_val = X_val.reshape((X_val.shape[0], -1), 
                                    order = 'F')
         reshaped_Y_val = np.squeeze(Y_val)
@@ -487,9 +487,9 @@ def test_model(model, X_test, Y_test, learning_rates,
     '''
     
     #4/4/25 Use only H3K27ac for training and testing
-    X_test = X_test[:,:,0]
-    print('testing with 1 feature')
-    print('Shape of testing X (features) data: ', X_test.shape)
+    #X_test = X_test[:,:,0]
+    #print('testing with 1 feature')
+    #print('Shape of testing X (features) data: ', X_test.shape)
         
     # Reshape data into 2 dimensions.
     reshaped_X_test = X_test.reshape((X_test.shape[0], -1), 
@@ -740,9 +740,9 @@ def make_prediction(model, input_data):
     return: the model's predictions for the provided input data
     '''
     #4/4/25 Use only H3K27Ac for training and testing
-    input_data = input_data[:,:,0]
-    print('training and testing with 1 feature')
-    print('prediction test dataset shape :', input_data.shape)
+    #input_data = input_data[:,:,0]
+    #print('training and testing with 1 feature')
+    #print('prediction test dataset shape :', input_data.shape)
 
     reshaped_X_test = input_data.reshape((input_data.shape[0], -1), order = 'F')
     return np.asarray(model.predict(reshaped_X_test), dtype='float')
