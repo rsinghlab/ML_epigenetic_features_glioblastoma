@@ -1,16 +1,18 @@
-"""
-Goal: Predict gene expression value (regression) from epigenetic signal inputs
-across two patients. 
+'''
+This is a script to implement a Convolutional Neural Network
+(CNN) model. 
 
-The model takes two GSC (patient) data files as input. The first is 
-used to create train and validation sets. The second, to create the test
-set.
+Goal: Predict gene expression value (regression) 
+from epigenetic signal inputs. 
+
+The script takes two GSC (patient) data files as input. 
+The first is used to create train and validation (if 
+applicable) sets. The seconddata fileis used to create the test set.
  
 This model is designed to accept 'raw' input values. It applies the log2
-computation on the target variable before the cross-validation dataset split step.
-The model applies standardization to the train, validation and test datasets
-seperately after the cross_validation split.  
-"""
+computation on the target variable before the dataset split step. 
+The model applies standardization to the train, validation and test datasets seperately after the dataset split process.  
+'''
 
 import sys
 import numpy as np
@@ -20,14 +22,14 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 # Method used to troubleshoot issues between SHAP and Tensorflow.
 #tf.compat.v1.disable_v2_behavior()
-from matplotlib import pyplot as plt
-import seaborn as sn
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Conv1D, Flatten, MaxPooling1D, Dense, Dropout
-from sklearn.model_selection import KFold
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import plot_model
+from matplotlib import pyplot as plt
+import seaborn as sn
+from sklearn.model_selection import KFold
 from sklearn import preprocessing
 from tqdm import tqdm
 from tensorflow.keras import backend as K
@@ -40,9 +42,23 @@ import math
 import shap
 import pandas as pd
 
-def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, validation):
+def get_data_patient_1(file_path, indices, gene_dict, num_genes,
+                       preprocess, validation):
     '''
-    Returns X_train, X_val, Y_train, Y_val; where X refers to inputs and Y refers to labels.
+    Patient 1's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform
+                      processing
+    param validation: boolean to determine if function shoud produce
+                      useable validation dataset
+    return: X_train, Y_train, X_val, Y_val; where X refers 
+    to inputs and Y refers to labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
     '''
     
     if preprocess:
@@ -83,8 +99,9 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
             # Add to array at the unique id position
             X[gene_ind] = data_inputs
 
-            # Set corresponding value to be first bin's RNAseq value (since all 50 bins
-            # have the same value when using the featureCounts utility and process).
+            # Set corresponding value to be first bin's RNAseq
+            # value (since all 50 bins have the same value
+            # when using the featureCounts utility and process).
             Y[gene_ind] = data[0, -1]
 
             #NOTE: Evaluating different methods of determining the RNAseq value.
@@ -101,71 +118,118 @@ def get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess, val
 
         # Log2 scale the Y response variable.
         Y = np.log2(Y + 1)
+        print('max training Y value:', np.max(Y))
+        print('min training Y value:', np.min(Y))
+        print('range training Y values:', np.ptp(Y))
         
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
+        print('First X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 1 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient1_ind = np.delete(ind, indexes)
+        print('Patient 1 indeces shape : ')
+        print(patient1_ind.shape)
 
         if validation == True:
             # HYPERPARAMETER TUNING SPLITS
             # Create train (70%), validation (30%).
-            train_ind = ind[0: int(0.7*num_genes)]
-            val_ind = ind[int(0.7*num_genes):]
+            #train_ind = ind[0: int(0.7*num_genes)]
+            #val_ind = ind[int(0.7*num_genes):]
+            
+            train_ind = patient1_ind[0: int(0.7*num_genes)]
+            val_ind = patient1_ind[int(0.7*num_genes):]
+
+            X_train = X[train_ind]
+            X_val = X[val_ind]
         
+            Y_train = Y[train_ind]
+            Y_val = Y[val_ind]
+            
+            # List of all datasets after split operation.
+            # Standardization ONLY on input variables.
+            datasets = [X_train, X_val]
+            
         else:
             # TESTING SPLITS
-            # The training set will have 99% of the patient 1 data to train the model.
-            # The validation set is reduced to 1% but ket to not break the function.
-            train_ind = ind
-            #train_ind = ind[0: int(0.99*num_genes)]
-            val_ind = ind[int(0.99*num_genes):]
-
+            # The training set will have 100% of the 
+            # patient 1 data to train the model.
+            train_ind = patient1_ind
+            X_train = X[train_ind]
+            Y_train = Y[train_ind]
+            datasets = [X_train]
         
-        X_train = X[train_ind]
-        X_val = X[val_ind]
 
-
-        Y_train = Y[train_ind]
-        Y_val = Y[val_ind]
-
-
-        # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
-        # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
-        datasets = [X_train, X_val]
-
-        # Perform calculation on each column of the seperate train, validation and test sets. 
+        # Perform calculation on each column of the 
+        # seperate trainand validation sets. 
         for dataset in datasets:
             for i in range(dataset.shape[2]):
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1) # The degrees of freedom is set t
                 
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train", X_train, allow_pickle=True)
-        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val", X_val, allow_pickle=True)
-        
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train", Y_train, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val", Y_val, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_1_stem_standard_log2_train",
+                X_train,
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_train",
+                Y_train, 
+                allow_pickle = True)
+            
+        if validation == True:
+                np.save("X_cross_patient_regression_patient_1_stem_standard_log2_val",
+                X_val, 
+                allow_pickle = True)
+                np.save("Y_cross_patient_regression_patient_1_stem_standard_log2_val",
+                Y_val, 
+                allow_pickle = True)
         
     
     else:
-        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        X_train = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_train.npy",
+                          allow_pickle = True)
+        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", 
+                          allow_pickle = True)
         
-        Y_train = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_train.npy", allow_pickle=True)
-        Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", allow_pickle=True)
+        if validation == True:
+            X_val = np.load("X_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
+            Y_val = np.load("Y_cross_patient_regression_patient_1_stem_standard_log2_val.npy", 
+                        allow_pickle = True)
         
     
         gene_dict = gene_dict
         num_genes = num_genes
 
     
-    return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    if validation == True:
+        return X_train, X_val, Y_train, Y_val, gene_dict, num_genes
+    else:
+        return X_train, Y_train, gene_dict, num_genes
+        
 
-def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
-    '''
-    Returns X_test, Y_test; where X refers to inputs and Y refers to labels.
+def get_data_patient_2(file_path, indices, gene_dict,
+                       num_genes, preprocess):
+    '''Patient 2's data preperation for model input.
+    param file_path: location of patient data
+    param indices: location of file used to shuffle gene order
+    param gene_dict: dictionary of gene names and their 
+                     position in data.
+    param num_genes: the number of genes in a patient's dataset
+    param preprocess: boolean to determine if function should perform                           processing 
+    return: X_test, Y_test; where X refers to inputs and Y refers to
+            labels.
+    return: gene_dict (gene name dictionary)
+    return: num_genes (the number of genes in the test set)
+    return: patient2_ind (the indices for the patient 2 dataset. This
+    may be a subset of the indices shuffle index if the number of genes
+    in the test set is lower than the 20,015 in the training set) 
     '''
 
     if preprocess:
@@ -222,11 +286,25 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
 
         # Log2 scale the Y response variable
         Y = np.log2(Y + 1)
+        print('max test Y value:', np.max(Y))
+        print('min test Y value:', np.min(Y))
+        print('range test Y values:', np.ptp(Y))
 
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(indices, allow_pickle=True)
+        ind = np.load(indices, allow_pickle = True)
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 2 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient2_ind = np.delete(ind, indexes)
+        print('Patient 2 indeces shape : ')
+        print(patient2_ind.shape)
 
         # Splits for this patient data can be adjusted here.
         #train_ind = ind[0: int(0.7*num_genes)]
@@ -234,23 +312,18 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
         #test_ind = ind[int(0.85*num_genes):]
 
 
-        # NOTE: For now use entire dataset for test set.
-        test_ind = ind
+        # NOTE: Use entire dataset for test set.
+        #test_ind = ind
+        test_ind = patient2_ind
 
-        #X_train = X[train_ind]
-        #X_val = X[val_ind]
         # Use all of the dataset for test.
         X_test = X[test_ind]
 
-        #Y_train = Y[train_ind]
-        #Y_val = Y[val_ind]
         # Use all of the dataset for test.
         Y_test = Y[test_ind]
 
         # List of all datasets after split operation.
-        # datasets = [X_train, X_val, X_test, Y_train, Y_val, Y_test]
         # Standardization ONLY on input variables.
-        #datasets = [X_train, X_val, X_test]
         datasets = [X_test]
 
         # Perform calculation on each column of the seperate train, validation and test sets.
@@ -268,23 +341,31 @@ def get_data_patient_2(file_path, indices, gene_dict, num_genes, preprocess):
                 # Standardize the column values.
                 dataset[:, :, i] = (dataset[:, :, i] - np.mean(dataset[:, :, i])) / np.std(dataset[:, :, i], ddof = 1)
 
-        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test", X_test, allow_pickle=True)
-        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", Y_test, allow_pickle=True)
+        np.save("X_cross_patient_regression_patient_2_stem_standard_log2_test",
+                X_test, 
+                allow_pickle = True)
+        np.save("Y_cross_patient_regression_patient_2_stem_standard_log2_test", 
+                Y_test, 
+                allow_pickle = True)
 
     else:
-        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
-        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", allow_pickle=True)
+        X_test = np.load("X_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle = True)
+        Y_test = np.load("Y_cross_patient_regression_patient_2_stem_standard_log2_test.npy", 
+                         allow_pickle = True)
 
         gene_dict = gene_dict
         num_genes = num_genes
 
-    return X_test, Y_test, gene_dict, num_genes
+    return X_test, Y_test, gene_dict, num_genes, patient2_ind
 
 def reset_random_seeds(seed):
     '''
     Takes a given number and assigns it
     as a random seed to various generators and the
     os environment.
+    param seed: the random seed (integer) to be used
+    return: None
     '''
 
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -294,9 +375,15 @@ def reset_random_seeds(seed):
 
     return None
 
-def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, learning_rate, num_filters, kernelsize, pool_size, hidden_size_1, hidden_size_2, hidden_size_3, dropout_rate):
+def train_model(X_train, Y_train,
+                epochs, validation, 
+                batch_size, learning_rate, num_filters, 
+                kernelsize, pool_size, 
+                hidden_size_1, hidden_size_2, hidden_size_3, 
+                dropout_rate, random_state, 
+                X_val, Y_val):
     """
-    Implements and trains the model using a CNN
+    Implements and trains the model
     param X_train: the training inputs
     param Y_train: the training labels
     param X_val: the validation inputs
@@ -314,7 +401,7 @@ def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, 
 
     
     # Model composed with tensorflow's functional API
-    epigenetic_input = Input(shape=X_train.shape[1:], name = 'epigenetic features input')
+    epigenetic_input = Input(shape = X_train.shape[1:], name = 'epigenetic features input')
     epigenetic_convolution = Conv1D(filters=num_filters, kernel_size=kernelsize, activation='relu', name = 'convolution')(epigenetic_input)
     epigenetic_pooling = MaxPooling1D(pool_size=max_pool_size, name = 'pooling')(epigenetic_convolution)
     epigenetic = Dropout(dropout_rate)(epigenetic_pooling)
@@ -336,13 +423,23 @@ def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, 
     # model.summary() 
     
     # Plot model graph
-    plot_model(model, to_file = 'pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_pred_regression_model.png', show_shapes=True)
+    plot_model(model, to_file = save_directory + '/cnn_cross_patient_pred_regression_model.png', 
+               show_shapes = True, 
+               dpi = 600)
     
-    model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate), metrics=metrics)
+    model.compile(loss='mean_squared_error', 
+                  optimizer = Adam(learning_rate), 
+                  metrics = metrics)
     if validation == True:
-        history = model.fit({'epigenetic features input': X_train}, Y_train, validation_data=({'epigenetic features input' : X_val}, Y_val), epochs=epochs, batch_size=batch_size, shuffle=False)
+        history = model.fit({'epigenetic features input': X_train}, Y_train, validation_data=({'epigenetic features input' : X_val}, Y_val),
+                            epochs = epochs, 
+                            batch_size = batch_size, 
+                            shuffle = False)
     else:
-        history = model.fit({'epigenetic features input': X_train}, Y_train, epochs=epochs, batch_size=batch_size, shuffle=False)
+        history = model.fit({'epigenetic features input': X_train}, Y_train, 
+                            epochs = epochs, 
+                            batch_size = batch_size, 
+                            shuffle = False)
 
 
     return model, history
@@ -351,12 +448,14 @@ def train_model(X_train, X_val, Y_train, Y_val, epochs, validation, batch_size, 
 
 def pearson_r(y_true, y_pred):
     '''
-    Calculate Pearson Correlation Coefficient (PCC) as a metric for the model.
+    Calculate Pearson Correlation Coefficient (PCC) as a
+    metric for the model.
+    return: PCC calculation
     '''
     x = y_true
     y = y_pred
-    mx = K.mean(x, axis=0)
-    my = K.mean(y, axis=0)
+    mx = K.mean(x, axis = 0)
+    my = K.mean(y, axis = 0)
     xm, ym = x - mx, y - my
     r_num = K.sum(xm * ym)
     x_square_sum = K.sum(xm * xm)
@@ -368,10 +467,16 @@ def pearson_r(y_true, y_pred):
 
 def spearman_r(y_true, y_pred):
     '''
-    Calculate Spearman Correlation Rank Coefficient (SCRC) as a metric for the model.
+    Calculate Spearman Correlation Rank Coefficient
+    (SCRC) as a metric for the model.
+    return: SCC calculation
     '''
 
-    spearman_value = tf.py_function(spearmanr, [tf.cast(y_pred, tf.float32), tf.cast(y_true, tf.float32)], Tout = tf.float32)
+    spearman_value = tf.py_function(spearmanr, 
+                                    [tf.cast(y_pred, tf.float32),
+                                     tf.cast(y_true, tf.float32)],
+                                    Tout = tf.float32)
+    
     return spearman_value
 
 
@@ -385,16 +490,20 @@ def calculate_se_for_predictions(y_true, y_pred):
     returns: Array of SE values the same length as Y_test.
     '''
 
-    prediction_se = np.round_(np.square(y_true - y_pred), decimals = 6)
+    prediction_se = np.round_(np.square(y_true - y_pred), 
+                              decimals = 6)
 
     return prediction_se
 
 def calculate_prediction_high_low(mse, y_true, y_pred):
     '''
-    Determines the index positions for genes with the "best" and "worst"
-    predictions. The 25% with the lowest MSE and the 25% with the highest.
-    The mse values should be originally in the order of their index positions
-    in the test set. They are sorted into ascending order here.
+    Determines the index positions for genes with the "best" 
+    and "worst" predictions. The 25% with the lowest MSE 
+    and the 25% with the highest.
+    
+    The mse values should be originally in the order of their 
+    index positions in the test set. They are sorted into 
+    ascending order here.
 
     returns: Two arrays of index positions for genes in test set. 
     '''
@@ -452,7 +561,9 @@ def calculate_prediction_high_low(mse, y_true, y_pred):
     
     
 
-def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
+def get_gene_names(gene_dict, indices, 
+                   test_data_shape, num_genes, 
+                   shuffle_index):
     '''
     Using the input dictionary of gene names and their unique identifier
     this function extracts the genes and their index position in X_test_data
@@ -461,8 +572,12 @@ def get_gene_names(gene_dict, indices, test_data_shape, num_genes):
 
     returns: Returns a list of the gene names
     '''
+    ### Discontinue using the loaded index file because it 
+    ### is setup for 20,0015 genes and does not accomidate
+    ### the smaller set of genes in avaliable in the later
+    ### datasets used for cross-patient testing.
     # Load indices file used for shuffle operation.
-    shuffle_index = np.load(indices, allow_pickle=True)
+    # shuffle_index = np.load(indices, allow_pickle = True)
     
     #shuffle_index = np.arange(0, 20015) 
     # Invert order of keys and values for gene dictionary.
@@ -492,8 +607,7 @@ def visualize_loss(history, validation, count):
         plt.legend(['train loss', 'validation loss'], loc='upper left')
     else:
         plt.legend(['train loss'], loc='upper left')
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_loss_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/cnn_loss_' + str(count) + '.png')
 
     return None
 
@@ -501,7 +615,8 @@ def visualize_pcc(history, validation, count):
     '''
     Visualization of the Pearson Correlation Coefficient (PCC)
     values over all epochs.
-    returns: Nothing. A visualization will appear and/or be saved.
+    returns: Nothing. A visualization is saved to the script
+             save folder.
     '''
     plt.close()
     plt.plot(history.history['pearson_r'], color = 'peru')
@@ -512,11 +627,12 @@ def visualize_pcc(history, validation, count):
     plt.ylabel('PCC')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train pcc', 'validation pcc'], loc='upper left')
+        plt.legend(['train pcc', 'validation pcc'], 
+                   loc = 'upper left')
     else:
-        plt.legend(['train pcc'], loc='upper left')
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_pcc_' + str(count) + '.png')
-    #plt.show()
+        plt.legend(['train pcc'],
+                   loc = 'upper left')
+    plt.savefig(save_directory + '/cnn_pcc_' + str(count) + '.png')
 
     return None
 
@@ -534,10 +650,12 @@ def visualize_scc(history, validation, count):
     plt.ylabel('SCC')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train scc', 'validation scrc'], loc='upper left')
+        plt.legend(['train scc', 'validation scrc'],
+                   loc = 'upper left')
     else:
-        plt.legend(['train scc'], loc='upper left')
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_scc_' + str(count) + '.png')
+        plt.legend(['train scc'],
+                   loc = 'upper left')
+    plt.savefig(save_directory + '/cnn_scc_' + str(count) + '.png')
    
 
     return None
@@ -546,7 +664,8 @@ def visualize_rsquare(history, validation, count):
     '''
     Visualize the RSquare metric accross all epochs.
 
-    returns: Nothing. The plot will appear and/or be saved.
+    returns: Nothing. The plot will be saved to the output
+             directory.
     '''
     plt.close()
     plt.plot(history.history['r_square'], color = 'forestgreen')
@@ -559,8 +678,7 @@ def visualize_rsquare(history, validation, count):
         plt.legend(['train R2', 'validation R2'], loc = 'upper left')
     else:
         plt.legend(['train R2'], loc = 'upper left')
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_rsquare_' + str(count) + '.png')
-    #plt.show()
+    plt.savefig(save_directory + '/cnn_rsquare_' + str(count) + '.png')
 
     return None
 
@@ -582,21 +700,24 @@ def visualize_metrics_together(history, validation, count):
     plt.ylabel('Metric value')
     plt.xlabel('epoch')
     if validation:
-        plt.legend(['train scc', 'train pcc', 'train R^2', 'validation scc', 'validation pcc', 'validation R^2'], loc='lower right')
+        plt.legend(['train scc', 'train pcc', 'train R^2', 'validation scc', 'validation pcc', 'validation R^2'], 
+                   loc = 'lower right')
     else:
-        plt.legend(['train scc', 'train pcc', 'train R^2'], loc='upper left')
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_metrics_' + str(count) + '.png')
-    #plt.show()
+        plt.legend(['train scc', 'train pcc', 'train R^2'], 
+                   loc = 'upper left')
+    plt.savefig(save_directory + '/cnn_metrics_' + str(count) + '.png')
+
 
     return None
 
-def visualize_training_validation_distributions(y_train, y_val, validation):
+def visualize_training_distributions(y_train):
     '''
     Creates multiple visualizations for the for the 
-    training and validation sets. Visualizations are saved to the models image folder.
-    param y_train: the true (observed) RNAseq values for the test set.
-    param y_val: the true (observed) RNAseq values for the validation set.
-
+    training and validation sets. 
+    Visualizations are saved to the model's output folder.
+    param y_train: the true (observed) 
+                   RNAseq values for the test set.
+    
     returns: Nothing.
     '''
 
@@ -609,19 +730,13 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
     plt.ylabel('count')
     plt.xlabel('RNAseq value after log(2) transformation.')
     sn.histplot(y_train, legend = False, palette= ['red'], bins = 50)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
-
-    plt.close()
-    plt.title('Validation set genes\' RNAseq value counts.')
-    plt.ylabel('count')
-    plt.xlabel('RNAseq value after log(2) transformation.')
-    sn.histplot(y_val, legend = False, palette = ['grey'], bins = 50)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Training_set_genes_RNAseq_value_counts-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/Training_set_genes_RNAseq_value_counts-_histogram_plot.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
 
     training_RNAseq_dataframe = pd.Series(np.squeeze(y_train))
-    validation_RNAseq_dataframe = pd.Series(np.squeeze(y_val))
+
     
     # Define gene expression catagories for analysis.
 
@@ -634,26 +749,74 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
                                                                     "between 5 and 10", "between 10 and 15" ],
                                             "count": [len(training_all_zero_true_expression), len(training_true_expression_between_0_and_5), 
                                                      len(training_true_expression_between_5_and_10), len(training_true_expression_between_10_and_15)]})
+    
+    dataframes = [training_expression_counts_dataframe]
+    dataset_names = ['Training Set']
 
-    if validation == True:
-        validation_all_zero_true_expression = validation_RNAseq_dataframe[validation_RNAseq_dataframe  == 0]
-        validation_true_expression_between_0_and_5 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe > 0) & (validation_RNAseq_dataframe < 5)]
-        validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
-        validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
+        
+    
+    # Visualize number of genes in each catagory.
+    for l in range(len(dataframes)):
+        plt.close()
+        sn.set_theme(style = "whitegrid")
+        fig, ax = plt.subplots(figsize = (8, 5))
+        fig.suptitle(f'{dataset_names[l]}-CNN Cross Patient Regression True Expression Counts')
+        ax = sn.barplot(data = dataframes[l], x = "expression catagory after log(2) transform", y = "count")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
+        #ax.set(title = f'{dataset_names[l]}-CNN Cross Patient Regression True Expression Counts')
+        sn.set(font_scale = 1)
+        for i in ax.containers:
+            ax.bar_label(i,)
+        plt.savefig(save_directory + '/' + dataset_names[l] + 'Expression_Catagory_Counts.png',
+                    format = 'png',
+                    dpi = 600,
+                    bbox_inches = 'tight')
+
+        
+def visualize_validation_distributions(y_val):
+    '''
+    Creates multiple visualizations for the for the 
+    training and validation sets. Visualizations are saved 
+    to the model's output folder.
+    
+    param y_val: the true (observed) RNAseq values for the validation set.
+
+    returns: Nothing.
+    '''
+
+    # Build dataframe for visualization.
+    #train_and_val_rnaseq = pd.DataFrame({'training set' : y_train.tolist(),
+                                        #'validation set' : y_val.tolist()})
+    
+
+    plt.close()
+    plt.title('Validation set genes\' RNAseq value counts.')
+    plt.ylabel('count')
+    plt.xlabel('RNAseq value after log(2) transformation.')
+    sn.histplot(y_val, legend = False, palette = ['grey'], bins = 50)
+    plt.savefig(save_directory + '/Validation_set_genes_RNAseq_value_counts-_histogram_plot.png',
+                format = 'png',
+                dpi = 600,
+                bbox_inches = 'tight')
 
 
-        validation_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : ["all zero", "between 0 and 5", 
+    validation_RNAseq_dataframe = pd.Series(np.squeeze(y_val))
+    
+    # Define gene expression catagories for analysis.
+    validation_all_zero_true_expression = validation_RNAseq_dataframe[validation_RNAseq_dataframe  == 0]
+    validation_true_expression_between_0_and_5 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe > 0) & (validation_RNAseq_dataframe < 5)]
+    validation_true_expression_between_5_and_10 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 5) & (validation_RNAseq_dataframe < 10)]
+    validation_true_expression_between_10_and_15 = validation_RNAseq_dataframe[(validation_RNAseq_dataframe >= 10) & (validation_RNAseq_dataframe <= 15)]
+
+
+    validation_expression_counts_dataframe = pd.DataFrame({"expression catagory after log(2) transform" : ["all zero", "between 0 and 5", 
                                                                     "between 5 and 10", "between 10 and 15" ],
                                                 "count": [len(validation_all_zero_true_expression), len(validation_true_expression_between_0_and_5), 
                                                      len(validation_true_expression_between_5_and_10), len(validation_true_expression_between_10_and_15)]})
+        
+    dataframes = [validation_expression_counts_dataframe]
+    dataset_names = ['Validation Set']
 
-
-        dataframes = [training_expression_counts_dataframe, validation_expression_counts_dataframe]
-        dataset_names = ['Training Set', 'Validation Set']
-
-    else:
-        dataframes = [training_expression_counts_dataframe]
-        dataset_names = ['Training Set']
 
         
     
@@ -666,10 +829,13 @@ def visualize_training_validation_distributions(y_train, y_val, validation):
         ax = sn.barplot(data = dataframes[l], x = "expression catagory after log(2) transform", y = "count")
         ax.set_xticklabels(ax.get_xticklabels(), rotation = "45")
         #ax.set(title = f'{dataset_names[l]}-CNN Cross Patient Regression True Expression Counts')
-        sn.set(font_scale=1)
+        sn.set(font_scale = 1)
         for i in ax.containers:
             ax.bar_label(i,)
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_Regression_' + dataset_names[l] + '_Expression_Catagory_Counts.png', bbox_inches='tight')
+        plt.savefig(save_directory + '/' + dataset_names[l] + 'Expression_Catagory_Counts.png', 
+                    format = 'png',
+                    dpi = 600,
+                    bbox_inches='tight')
 
     return None
 
@@ -677,28 +843,24 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     '''
     Creates multiple visualizations for the for the 
     test set.
-    param prediction_ses: Array of calculated Squared Error values per gene.
+    param prediction_ses: Array of calculated Squared 
+                          Error values per gene.
     param y_true: the true (observed) RNAseq values.
     param y_pred: the model's predicted values.
 
-    returns: Nothing.
+    returns: Nothing. The visualizations will be saved to the script's
+             output folder.
     '''
     
-    #plt.close()
-    #plt.title('Mean Squared Error Values for Test Set Genes')
-    #plt.ylabel('MSE')
-    #plt.xlabel('Gene index in test set')
-    #plt.scatter(np.arange(prediction_ses.shape[0]), prediction_ses)
-    #plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_Patient_Regression_test_set_mse_values.png')
-    #plt.show()
 
     plt.close()
     plt.title('Squared Error value counts for the Test Set Genes')
     plt.ylabel('count')
     plt.xlabel('Mean Squared Error')
     sn.histplot(prediction_ses, legend = False, color = 'red', bins = 50)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_Patient_Regression_test_set_mse_values_-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/Cross_Patient_Regression_test_set_mse_values_-_histogram_plot.png',
+                format = 'png',
+                bbox_inches = 'tight')
 
 
     plt.close()
@@ -706,16 +868,18 @@ def visualize_prediction_mse(prediction_ses, y_true, y_pred):
     plt.ylabel('count')
     plt.xlabel('True values')
     sn.histplot(y_true, legend = False, color = 'blue', bins = 50)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_Patient_Regression_test_set_true_RNAseq_values_-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/Cross_Patient_Regression_test_set_true_RNAseq_values_-_histogram_plot.png', 
+                format = 'png',
+                bbox_inches = 'tight')
 
     plt.close()
     plt.title('Predicted RNAseq Values for the Test Set Genes')
     plt.ylabel('count')
     plt.xlabel('Predicted values')
     sn.histplot(y_pred, legend = False, color = 'red', bins = 50)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_Regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', bbox_inches='tight')
-    #plt.show()
+    plt.savefig(save_directory + '/Cross_patient_Regression_test_set_predicted_RNAseq_values_-_histogram_plot.png', 
+                format = 'png',
+                bbox_inches = 'tight')
 
     return None
 
@@ -737,7 +901,9 @@ def visualize_testing_distributions(all_zero_true_expression, true_expression_be
     for i in ax.containers:
         ax.bar_label(i,)
 
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_expression_catagory_counts.png', 
+                format = 'png',
+                bbox_inches = 'tight')
     
     return None
 
@@ -753,7 +919,7 @@ def visualize_testing_set_mse_by_catagory(test_set_MSE, all_zero_true_expression
                                                     true_expression_between_10_and_15[' prediction Squared Error (SE)'].mean()]})
     
     plt.close()
-    sn.set_theme(style="whitegrid")
+    sn.set_theme(style = "whitegrid")
     fig, ax = plt.subplots(figsize = (8, 5))
     ax = sn.barplot(data = expression_mean_dataframe, x = "expression catagory after log(2) transform", y = "mean squared error (MSE)")
     ax.set(title = 'Testing Set - CNN Cross Patient Regression MSE Per Expression Catagory')
@@ -764,7 +930,9 @@ def visualize_testing_set_mse_by_catagory(test_set_MSE, all_zero_true_expression
         ax.bar_label(i,)
     
     
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', bbox_inches='tight')
+    plt.savefig(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_expression_catagory_MSE.png', 
+                format = 'png',
+                bbox_inches='tight')
 
     return None
 
@@ -814,8 +982,7 @@ def visualize_prediction(highly_expressed_low_mse_group, lowly_expressed_low_mse
             #    log.write('\n' f'{gn}, {index}, {al}, {pl}')
         fig.suptitle("{} genes from test set\nTV = True RNAseq Value\nPV = Predicted RNAseq Value, GI = Gene index position in test set".format(chart_label))
         fig.tight_layout()
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_regression_Prediction_' + chart_label + '.png')
-        #plt.show()
+        plt.savefig(save_directory +  '/Cross_patient_regression_Prediction_' + chart_label + '.png')
 
 
     #gene_indices = [i[1] for i in sorted_mse_with_idx]
@@ -852,8 +1019,9 @@ def visualize_test_obs_pred(y_true, y_pred):
     plt.xlim(0, 15)
     plt.xlim(0, 15)
     plt.axis('square')   
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_regression_test_set_observed_vs_predicted.png', bbox_inches = 'tight')
-    #plt.show()
+    plt.savefig(save_directory + '/Cross_patient_regression_test_set_observed_vs_predicted.png', 
+                bbox_inches = 'tight')
+
 
     # Create dataframe of true and predicted values for visualization.
     data = {'True Values': np.squeeze(y_true), 'Predicted Values': np.squeeze(y_pred)}
@@ -862,26 +1030,35 @@ def visualize_test_obs_pred(y_true, y_pred):
     # Regular joint plot
     plt.close()
     #plt.title("RNAseq Observed Values vs Predicted Values Joint Plot")
-    sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png', bbox_inches = 'tight')
-    #plt.show()
+    sn.jointplot(x = 'True Values', 
+                 y = 'Predicted Values', 
+                 data = df)
+    plt.savefig(save_directory + '/Cross_patient_regression_test_set_observed_vs_predicted_joint_plot.png', 
+                bbox_inches = 'tight')
+
 
     # Kernal Density Estimation joint plot
     plt.close()
     #plt.title("RNAseq Observed Values vs Predicted Values KDE Joint Plot")
-    sn.jointplot(x = 'True Values', y = 'Predicted Values', data = df, kind = 'kde')
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', bbox_inches = 'tight')
-    #plt.show()
+    sn.jointplot(x = 'True Values', 
+                 y = 'Predicted Values', 
+                 data = df, 
+                 kind = 'kde')
+    plt.savefig(save_directory + '/Cross_patient_regression_test_set_observed_vs_predicted_KDE_joint_plot.png', 
+                bbox_inches = 'tight')
+
 
     return None
 
 def visualize_aggregated_input_profiles(test_dataset, all_zero_true_expression, true_expression_between_0_and_5, true_expression_between_5_and_10, true_expression_between_10_and_15, prediction_dataframe):
     '''
-    Creates aggregated heatmap visualizations for genes within the predefined
+    Creates aggregated heatmap visualizations for 
+    genes within the predefined
     true expression value groups. 
     
-    NOTE: Although a provision was coded to normalize the features for visualization,
-    it is currently not in use because the input features are already standardized.
+    NOTE: Although a provision was coded to normalize 
+          the features for visualization, it is currently 
+          not in use because the input features are already standardized.
     
     returns: Nothing
     '''
@@ -915,19 +1092,19 @@ def visualize_aggregated_input_profiles(test_dataset, all_zero_true_expression, 
         ax = sn.heatmap(mean_gene_vals.T, cbar = False, annot = True, fmt='.7f', cmap = 'OrRd', annot_kws={'rotation':90})
         ax.set_xlabel('bins')
         ax.set_yticks([0.5, 1.5, 2.5, 3.5])
-        ax.set_yticklabels(['H3K27ac','CTCF','ATAC','RNA Pol II'])
+        ax.set_yticklabels(['H3K27Ac','CTCF','ATAC','RNAPII'])
         ax.set_ylabel('epigenetic features')
         ax.text(x = 0.5, y = 1.04, s = f'Feature values after standardization.', fontsize = 10, ha = 'center', va = 'bottom', transform = ax.transAxes)
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + heatmap_names[h] + '_seaborn.png', dpi = 150, bbox_inches = 'tight')
-        #plt.show()
-
+        plt.savefig(save_directory +  '/' + heatmap_names[h] + '_seaborn.png', 
+                    dpi = 150, 
+                    bbox_inches = 'tight')
 
     return None
 
 
 def visualize_correlation(test_data, highly_expressed_low_mse_group, lowly_expessed_low_mse_group, highly_expressed_high_mse_group, lowly_expressed_high_mse_group):
     '''
-    Creates 8 visualizations showing the feature correlation
+    Creates visualizations showing the feature correlation
     for "accurate" and "inaccurate" predictions within groups where the 
     true RNAseq shows relatively low or high gene expression.  
 
@@ -959,8 +1136,7 @@ def visualize_correlation(test_data, highly_expressed_low_mse_group, lowly_expes
         cmap = sn.diverging_palette(98, 230, as_cmap = True)
         ax = sn.heatmap(corr_matrix, annot = True, cmap = cmap, square = True, cbar_kws = {'shrink': 0.5})
         plt.title(correlation_names[h])
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + correlation_names[h] +'.png')
-        #plt.show()
+        plt.savefig(save_directory +  '/' + correlation_names[h] +'.png')
 
 
         plt.close()
@@ -970,8 +1146,7 @@ def visualize_correlation(test_data, highly_expressed_low_mse_group, lowly_expes
         cmap = sn.diverging_palette(98, 230, as_cmap = True)
         ax = sn.heatmap(corr_matrix, annot = True, mask = mask, cmap = cmap, vmax = 0.3, square = True, linewidths = 0, cbar_kws = {'shrink': 0.5})
         plt.title(correlation_names[h])
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + correlation_names[h] +'_diagonal_plot.png')
-        #plt.show()
+        plt.savefig(save_directory + '/' + correlation_names[h] +'_diagonal_plot.png')
 
     return None
 
@@ -1037,8 +1212,9 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         #ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
         ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
         #plt.title(f"SHAP summary for gene test index {index} : {gene}")
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png', dpi = 100, bbox_inches = 'tight')
-        #plt.show()
+        plt.savefig(save_directory + '/' + gene + '_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png', 
+                    dpi = 600, 
+                    bbox_inches = 'tight')
 
         # Plot region of interest for gene in dot plot.
         ####plt.close()
@@ -1046,7 +1222,7 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig.suptitle(f"SHAP summary for gene test index {index} : {gene}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene)) 
         ####ax = shap.summary_plot(deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "dot", show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
+        ####plt.savefig(save_directory + '/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
         #plt.show()
 
         # Plot gene of interest in bar plot.
@@ -1055,9 +1231,11 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         fig.suptitle(f"SHAP summary for gene test index {index} : {gene}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene))
         #ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
-        ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
+        ax = shap.summary_plot(deep_shap_values[0][index], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], 
+                               plot_type = "bar", 
+                               show = False)
         #plt.title(f"SHAP summary for gene test index {index} : {gene}")
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + gene + '_-_cross_patient_regression_SHAP_deep_explianer_bar_plot.png', dpi = 100, bbox_inches = 'tight')
+        plt.savefig(save_directory + '/' + gene + '_-_cross_patient_regression_SHAP_deep_explianer_bar_plot.png', dpi = 100, bbox_inches = 'tight')
         #plt.show()
 
         # Plot region of interest for gene in bar plot.
@@ -1065,22 +1243,22 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test index {index} : {gene}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}".format(index, gene))
-        ####ax = shap.summary_plot(deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "bar", show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
-        #plt.show()
+        ####ax = shap.summary_plot(deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = "bar", show = False)
+        ####plt.savefig(save_directory + '/' + gene + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
+
 
         #plt.close()
         #shap.summary_plot(gradient_shap_values[0], plot_type = 'bar', show=True)
-        #plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Regression_SHAP_summary_plot - gradient.png')
+        #plt.savefig(save_directory + '/Regression_SHAP_summary_plot - gradient.png')
 
         #plt.close()
         #shap.plots.bar(deep_shap_values)
-        #plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Regression_SHAP_summary_plot - gradient-bar.png')
+        #plt.savefig(save_directory + '/Regression_SHAP_summary_plot - gradient-bar.png')
 
         # Summary plot 2
         #plt.close()
         #shap.plots.beeswarm(deep_explainer, show = False)    
-        #plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/Regression_SHAP_beeswarm_plot.png')
+        #plt.savefig(save_directory + '/Regression_SHAP_beeswarm_plot.png')
 
         # Waterfall plot
         # This plot type can take only one example at a time. It cannot plot groups or multiple 
@@ -1089,17 +1267,17 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP local analysis for gene test index {index} : {gene}; bin : {bin_of_interest}")
         #ax.set(title = "SHAP local analysis for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        ####ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + gene + '_-_regression_SHAP_waterfall_plot.png')
-        #plt.show()
+        ####ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        ####plt.savefig(save_directory + '/' + gene + '_-_regression_SHAP_waterfall_plot.png')
+
 
         # Force plot
         #shap.initjs()
         #plt.close()
         #fig, ax = plt.subplots()
-        #ax = shap.force_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], features = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        #plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + gene + '_regression_SHAP_force_plot.png')
-        #plt.show()
+        #ax = shap.force_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][bin_of_interest], features = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        #plt.savefig(save_directory + '/' + gene + '_regression_SHAP_force_plot.png')
+
 
         # Decision plot
 
@@ -1108,8 +1286,8 @@ def visualize_shap_analysis(deep_shap_values, gene_name_list, genes_of_interest_
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP local analysis for gene test index {index} : {gene}; bin : {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        ####ax = shap.decision_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/'+ gene + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
+        ####ax = shap.decision_plot(deep_explainer.expected_value[0], deep_shap_values[0][index][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        ####plt.savefig(save_directory + '/'+ gene + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
 
     return None
 
@@ -1144,35 +1322,41 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         fig, ax = plt.subplots()
         fig.suptitle(f"Testing set {indices_names[i]}")
         ####ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
-        ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "dot", show = False)
+        ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = "dot", show = False)
         #plt.title(f"Testing set {indices_names[i]}")
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explainer_dot_plot.png', dpi = 100, bbox_inches = 'tight')
-        #plt.show()
+        plt.savefig(save_directory + '/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explainer_dot_plot.png',
+                    dpi = 100, 
+                    bbox_inches = 'tight')
+
 
         # Plot region of interest for catagory in dot plot.
         ####plt.close()
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test {indices_names[i]}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
-        ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "dot", show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
-        #plt.show()
+        ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = "dot", show = False)
+        ####plt.savefig(save_directory + '/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explainer_dot_plot.png')
+
 
         # Plot gene catagory in bar plot.
         plt.close()
         fig, ax = plt.subplots()
         fig.suptitle(f"Testing set {indices_names[i]}")
         ####ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
-        ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNA Pol II'], plot_type = "bar", show = False)
+        ax = shap.summary_plot(list_of_mean_group_shap_values[0], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], 
+                               plot_type = "bar", 
+                               show = False)
         #plt.title(f"Testing set {indices_names[i]}")
-        plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/shap_plots/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explianer_bar_plot.png', dpi = 100, bbox_inches = 'tight')
-        #plt.show()
+        plt.savefig(save_directory + '/' + indices_names[i] + '_-_regression_SHAP_summary_plot_-_deep_explianer_bar_plot.png', 
+                    dpi = 600,
+                    bbox_inches = 'tight')
+
 
         # Plot region of interest for catagory in bar plot.
         ####plt.close()
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP summary for gene test {indices_names[i]}; over region {region_of_interest_start}:{region_of_interest_stop - 1}")
-        ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], plot_type = "bar", show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
+        ####ax = shap.summary_plot(list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], plot_type = "bar", show = False)
+        ####plt.savefig(save_directory + '/' + indices_names[i] + '_-_regional_analysis_-_regression_SHAP_summary_plot - deep_explianer_bar_plot.png')
         #plt.show()
 
 
@@ -1183,9 +1367,9 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         #fig, ax = plt.subplots()
         #fig.suptitle(f"SHAP local analysis for gene test index {i}; bin : {bin_of_interest}")
         ##ax.set(title = "SHAP local analysis for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        #ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], group_shap_values[0][bin_of_interest], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        #plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/' + i + '_regression_SHAP_waterfall_plot.png')
-        #plt.show()
+        #ax = shap.plots._waterfall.waterfall_legacy(deep_explainer.expected_value[0], group_shap_values[0][bin_of_interest], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        #plt.savefig(save_directory + '/' + i + '_regression_SHAP_waterfall_plot.png')
+
 
         # Decision plot
         # Plot region of interest for catagory in decision plot.
@@ -1193,8 +1377,8 @@ def visualize_aggregated_shap_analysis(shap_values, deep_explainer, all_zero_tru
         ####fig, ax = plt.subplots()
         ####fig.suptitle(f"SHAP local analysis for gene test {indices_names[i]}; bins : {region_of_interest_start}:{region_of_interest_stop - 1}")
         #ax.set(title = "SHAP summary for gene test index {} : {}; bin : {}".format(index, gene, bin_of_interest))
-        ####ax = shap.decision_plot(deep_explainer.expected_value[0], list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27ac', 'CTCF', 'ATAC', 'RNApol2'], show = False)
-        ####plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/'+ indices_names[i] + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
+        ####ax = shap.decision_plot(deep_explainer.expected_value[0], list_of_mean_group_shap_values[0][region_of_interest_start:region_of_interest_stop], feature_names = ['H3K27Ac', 'CTCF', 'ATAC', 'RNAPII'], show = False)
+        ####plt.savefig(save_directory + '/'+ indices_names[i] + '_-_regional_analysis_-_regression_SHAP_decision_plot.png')
 
     
     return None
@@ -1222,7 +1406,9 @@ def visualize_model_test_results(results_list):
     sn.set(font_scale=1)
     for i in ax.containers:
         ax.bar_label(i,)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_metric_results.png', bbox_inches = 'tight')
+    plt.savefig(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_metric_results.png', 
+                bbox_inches = 'tight')
+    
     return None
 
 
@@ -1250,7 +1436,7 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
     returns: Nothing
     '''
    # Create csv file to hold prediction information.
-    with open('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
+    with open(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'w') as log:
             log.write(f'gene name, true RNAseq value, predicted RNAseq value, prediction Squared Error (SE)')
 
     for i in tqdm(range(len(gene_names))):
@@ -1259,14 +1445,14 @@ def prediction_csv(se_value, y_true, y_pred, gene_names):
         se = se_value[i]
         tv = y_true[i]
         pv = y_pred[i]
-        with open('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
+        with open(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_predictions.csv', 'a') as log:
             log.write('\n' f'{gn}, {tv[0]}, {pv[0]}, {se[0]}')
 
     return None
 
 def load_csv_and_create_dataframes():
     
-    prediction_dataframe = pd.read_csv('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision='round_trip')
+    prediction_dataframe = pd.read_csv(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_predictions.csv', float_precision = 'round_trip')
     
     # Define gene expression catagories for analysis.
 
@@ -1305,15 +1491,48 @@ def visualize_se_heatmap(se_values, gene_names_in_test_set):
     ax.tick_params(left=True, bottom=False)
     ax.set_xticklabels([])
     #ax.set_yticks(np.arange(len(gene_names_in_test_set[:10])), labels = gene_names_in_test_set[:10], rotation = 0)
-    plt.savefig('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png', bbox_inches='tight')
-    plt.show()
+    plt.savefig(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_test_gene_squared_error_heatmap.png',
+                bbox_inches='tight')
     
     return None
 
 
 
 
-def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_dict, val_r2_score_dict, val_scc_dict, gene_dict, num_genes, count, batch_size, learning_rate, num_filters, kernelsize, pool_size, hidden_size_1, hidden_size_2, hidden_size_3, dropout_rate):
+def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, 
+         val_loss_dict, val_pcc_dict, val_r2_score_dict, 
+         val_scc_dict, gene_dict, num_genes, count, 
+         batch_size, learning_rate, num_filters, kernelsize, 
+         pool_size, hidden_size_1, hidden_size_2, 
+         hidden_size_3, dropout_rate):
+    
+        # Save directory - path where result files and figures are saved
+    global save_directory
+
+    now = datetime.datetime.now()
+    
+    if sys.argv[5:]:
+        # Save path given by the user in the 5th argument to the global variable
+        save_directory = str(sys.argv[5])
+        # Create the given directory
+        print('*'*25)
+        print(f'Using {save_directory} as the save directory.')
+        print('*'*25)
+        os.makedirs(save_directory, exist_ok = True)
+
+    else:
+        save_directory = './cross_patient_regression_using_cnn_-_results_and_figures_-_' + \
+        str(now.month) + '-' + str(now.day) + '-' + str(now.year) + '_' + \
+        'at_' + str(now.hour) + '-' + str(now.minute) + '-' + str(now.second)
+        print('*'*25)
+        print('Using the default save directory:')
+        print(f'{save_directory}')
+        print('since a directory was not provided.')
+        print('*'*25)
+        os.makedirs(save_directory, exist_ok = True)
+
+
+    # Indicate True or False for the creation of a validation set. The script will fit the model accordingly.
     
     validation = False
     
@@ -1321,6 +1540,11 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     file_path_1 = sys.argv[1]
     file_path_2 = sys.argv[2]
     indices = sys.argv[3]
+    random_state = int(sys.argv[4])
+    print('*'*25)
+    print('The random seed is set to: ')
+    print(random_state)
+    print('*'*25) 
     
     # Call get_data() to process the data, preprocess = True will read in processed .npy files,
     # if false then will re-preprocess data
@@ -1335,32 +1559,81 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     else:
         validation_bool = False
 
-    # Processing data for GSC1 file to produce train and validation sets.
-    #X_train, X_val, X_test, Y_train, Y_val, Y_test, gene_dict, num_genes = get_data_patient_1(file_path, indices, gene_dict, num_genes, preprocess = preprocess_bool)
-    X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, indices, gene_dict, num_genes, preprocess = preprocess_bool, validation = validation_bool)
+    # Processing data for patient 1 file to produce train and validation sets.
+    if validation == True:
+        X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                                  indices, 
+                                                                                  gene_dict, 
+                                                                                  num_genes, 
+                                                                                  preprocess = preprocess_bool, 
+                                                                                  validation = validation_bool)
+    else:
+        
+        X_train, Y_train, gene_dict, num_genes = get_data_patient_1(file_path_1, 
+                                                                                  indices, 
+                                                                                  gene_dict, 
+                                                                                  num_genes, 
+                                                                                  preprocess = preprocess_bool, 
+                                                                                  validation = validation_bool)
 
     # Processing data for GSC2 file to produce test set.
-    X_test, Y_test, gene_dict, num_genes = get_data_patient_2(file_path_2, indices, gene_dict, num_genes, preprocess = preprocess_bool)
+    X_test, Y_test, gene_dict, num_genes, test_set_indices = get_data_patient_2(file_path_2, 
+                                                                                indices, 
+                                                                                gene_dict, 
+                                                                                num_genes, 
+                                                                                preprocess = preprocess_bool)
 
     # Call train_model() to train the model
     print("Training model")
-    model, history = train_model(X_train, X_val, Y_train, Y_val, epochs=150, validation = validation_bool, batch_size=batch_size, learning_rate=learning_rate, num_filters=num_filters, kernelsize=kernelsize, pool_size=pool_size, hidden_size_1=hidden_size_1, hidden_size_2=hidden_size_2, hidden_size_3=hidden_size_3, dropout_rate=dropout_rate)
-
-    min_loss = min(history.history['loss'])
-    max_pcc = max(history.history['pearson_r'])
-    max_r2_score = max(history.history['r_square'])
-    max_scc = max(history.history['spearman_r'])
-    if validation_bool == True:
+    
+    if validation == True:
+        model, history = train_model(X_train, Y_train, 
+                                     epochs = 150, 
+                                     validation = validation_bool,
+                                     batch_size = batch_size,
+                                     learning_rate = learning_rate,
+                                     num_filters = num_filters,
+                                     kernelsize = kernelsize,
+                                     pool_size = pool_size,
+                                     hidden_size_1 = hidden_size_1,
+                                     hidden_size_2 = hidden_size_2,
+                                     hidden_size_3 = hidden_size_3,
+                                     dropout_rate=dropout_rate,
+                                     random_state = random_state,
+                                     X_val = X_val, Y_val = Y_val)
+        
         min_val_loss = min(history.history['val_loss'])
         max_val_pcc = max(history.history['val_pearson_r'])
         max_val_r2_score = max(history.history['val_r_square'])
         max_val_scc = max(history.history['val_spearman_r'])
+        
     else:
+        model, history = train_model(X_train, Y_train, 
+                                     epochs = 150, 
+                                     validation = validation_bool,
+                                     batch_size = batch_size,
+                                     learning_rate = learning_rate,
+                                     num_filters = num_filters,
+                                     kernelsize = kernelsize,
+                                     pool_size = pool_size,
+                                     hidden_size_1 = hidden_size_1,
+                                     hidden_size_2 = hidden_size_2,
+                                     hidden_size_3 = hidden_size_3,
+                                     dropout_rate=dropout_rate,
+                                     random_state = random_state,
+                                     X_val = None, Y_val = None)
+        
         min_val_loss = 'TRAINING SET ONLY'
         max_val_pcc = 'TRAINING SET ONLY'
         max_val_r2_score = 'TRAINING SET ONLY'
         max_val_scc = 'TRAINING SET ONLY'
 
+    min_loss = min(history.history['loss'])
+    max_pcc = max(history.history['pearson_r'])
+    max_r2_score = max(history.history['r_square'])
+    max_scc = max(history.history['spearman_r'])
+
+ 
     loss_dict[count] = min_loss
     pcc_dict[count] = max_pcc
     r2_score_dict[count] = max_r2_score
@@ -1388,7 +1661,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     now = datetime.datetime.now()
     # If log file is present append to it.
     #if os.path.exists('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_log2_info.csv'):
-    with open('pngs_cnn_cross_patient_pred_regression_gsc_stem_standard_log2/cnn_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
+    with open(save_directory + '/cnn_cross_patient_regression_gsc_stem_standard_log2_info.csv', 'a') as log:
         log.write('\n' f'{now.strftime("%H:%M on %A %B %d")},')
         log.write(f'CURRENT COUNT: {count},learning rate: {learning_rate},batch size: {batch_size},')
         log.write(f'number of filters: {num_filters},kernel size: {kernelsize},pool size: {pool_size},')
@@ -1414,7 +1687,10 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     # Visualize model training and validation SCC.
     ####visualize_scc(history, validation_bool, count)
 
-    visualize_training_validation_distributions(Y_train, Y_val, validation_bool)
+    visualize_training_distributions(Y_train)
+    
+    if validation_bool == True:
+        visualize_validation_distributions(Y_val)
     
     # Make predictions given test data inputs
     Y_pred = make_prediction(model, X_test)
@@ -1433,7 +1709,7 @@ def main(loss_dict, pcc_dict, r2_score_dict, scc_dict, val_loss_dict, val_pcc_di
     #print(highly_expressed_low_mse_group)
     #print(lowly_expessed_low_mse_group)
     
-    gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes)
+    gene_names_in_test_set = get_gene_names(gene_dict, indices, X_test.shape[0], num_genes, test_set_indices)
 
     prediction_csv(prediction_se, Y_test, Y_pred, gene_names_in_test_set)
     
