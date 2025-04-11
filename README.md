@@ -67,7 +67,7 @@ Multiple Linear Regression (MLR)
 [code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
 
 ### Script arguments
-### XGBoost, Gradient Boosting Regression, Multi-layered Perceptron, Support Vector Machine, Multiple Linear Regression
+### XGBoost, Gradient Boosting Regression, Convolutional Neural Network, Multi-layered Perceptron, Support Vector Machine, and Multiple Linear Regression
 ![script argument arrangement](assets/script_usage_image_1.jpeg)
 
 A) The script's path and filename.
@@ -87,5 +87,28 @@ E) The integer to be used as the random seed.
 F) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified, a directory name will be automatically generated and the directory created in the same directory where the script resides. The save directory's name will include the date and time the script was run.
 
 NOTE: 3/13/25 The 'script output save directory' argument and functionality is specific to the **XGBoost, Multi-layered Perceptron, Support Vector Machine, Gradient Boosting Regression and Multiple Linear Regression** model scripts. This functionality is planned for implementation in the other scripts. For now, arguments **A-D** are active for those scripts.
+
+### "Branched" Multi-layered Perceptron
+![script argument arrangement 2](assets/script_usage_image_2.jpeg)
+
+A) The script's path and filename.
+
+B) The first data file's path and filename. This script creates the model's training and validation (or training only) sets from this file. 
+
+
+
+NOTE: The creation of a validation set is controlled by the ```validation = True``` or ```False``` statement in the script's ```main()``` function. The proportions given to each set specified in the ```get_data_patient_1``` function under the comment ```#HYPERPARAMETER TUNING SPLITS``` and ```#TESTING SPLITS```.
+
+C) The second data file's path and filename.
+
+D) The script requires a file containing the genomic sequences for the corresponding genes in the first and second input files. Only one file is necessary since the script will use the sequences for the first and second inputs with the expectation that the sequence file includes data for all the genes contained in both. 
+
+The [HG38_reference_genome_sequence_input_numerical_encoding.npy](data/HG38_reference_genome_data_files/HG38_reference_genome_sequence_input_numerical_encoding.npy) in the [data/HG38_reference_genome_data_files](data/HG38_reference_genome_data_files) folder was the primary version used for the study's experiments. 
+
+E) The [ind_shuffle.npy](data/ind_shuffle.npy) file (or equivalent) mentioned in the "Datasets" section above.
+
+F) The integer to be used as the random seed.
+
+G) The absolute or relative directory path where the various script functions will direct model output, predictions and visualizations. If no directory is specified, a directory name will be automatically generated and the directory created in the same directory where the script resides. The save directory's name will include the date and time the script was run.
 
 1. Mack SC, Singh I, Wang X, Hirsch R, Wu Q, Villagomez R, et al. Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma. J Exp Med. 20190404th ed. 2019 May 6;216(5):1071–90
