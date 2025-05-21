@@ -97,23 +97,37 @@ def get_data_train_val(data_path, index_path, gene_dict, num_genes, preprocess):
 
         # Log2 scale the Y response variable.
         Y = np.log2(Y + 1)
+        print('max training Y value:', np.max(Y))
+        print('min training Y value:', np.min(Y))
         
         # Shuffle the data
         # ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
-        ind = np.load(index_path, allow_pickle=True)
+        ind = np.load(index_path, allow_pickle=True)        
+        print('First X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 1 dataset shape : ')
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient1_ind = np.delete(ind, indexes)
+        print('Patient 1 indeces shape : ')
+        print(patient1_ind.shape)
 
         if sys.argv[5] == "hyperparameter-tuning":
             # HYPERPARAMETER TUNING SPLITS
             # Create train (70%), validation (30%).
-            train_ind = ind[0: int(0.7*num_genes)]
-            val_ind = ind[int(0.7*num_genes):]
+            train_ind = patient1_ind[0: int(0.7*num_genes)]
+            val_ind = patient1_ind[int(0.7*num_genes):]
         elif sys.argv[5] == "testing":
             # TESTING SPLITS
             # The training set will have 100% of the patient 1 data to train the model.
             # The validation set is reduced to 1% but ket to not break the script.
-            train_ind = ind
-            val_ind = ind[int(0.99*num_genes):]
+            train_ind = patient1_ind
+            val_ind = patient1_ind[int(0.99*num_genes):]
             
         X_train = X[train_ind]
         X_val = X[val_ind]
@@ -220,11 +234,25 @@ def get_data_test(data_path, index_path, gene_dict, num_genes, preprocess):
 
         # Log2 scale the Y response variable
         Y = np.log2(Y + 1)
+        print('max test Y value:', np.max(Y))
+        print('min test Y value:', np.min(Y))
 
         # Shuffle the data
         #ind = np.arange(0, num_genes)
         # np.random.shuffle(ind)
         ind = np.load(index_path, allow_pickle=True)
+        print('Second X dataset shape')
+        print(X.shape)
+        # Collect the indices that need to be deleted from the array
+        # because the number of genes is lower than the 20,015 due to 
+        # experiments keeping only the expressed genes in combined_diff
+        # or different numbers of genes in various test datasets. 
+        print('Patient 2 dataset shape : ') 
+        print(combined_diff.shape)
+        indexes = np.where(ind > X.shape[0] - 1)
+        patient2_ind = np.delete(ind, indexes)
+        print('Patient 2 indeces shape : ')
+        print(patient2_ind.shape)
 
         # Splits for this patient data can be adjusted here.
         #train_ind = ind[0: int(0.7*num_genes)]
@@ -233,7 +261,7 @@ def get_data_test(data_path, index_path, gene_dict, num_genes, preprocess):
 
 
         # NOTE: For now use entire dataset for test set.
-        test_ind = ind
+        test_ind = patient2_ind
 
         #X_train = X[train_ind]
         #X_val = X[val_ind]
@@ -599,8 +627,8 @@ def visualize_scc(history, validation, count, random_seed):
         plt.savefig("pngs_" + sys.argv[3] + "_" + sys.argv[5] + "_" + sys.argv[1] + "-to-" + sys.argv[2] + "_seed-" + sys.argv[6] + "_" + sys.argv[7] + '/scc_' + str(count) + '.png')
     else:
         plt.savefig("pngs_" + sys.argv[3] + "_" + sys.argv[5] + "_" + sys.argv[1] + "-to-" + sys.argv[2] + "_" + sys.argv[7] + '/scc_' + str(count) + '.png')
-   
 
+        
 def visualize_rsquare(history, validation, count, random_seed):
     '''
     Visualize the RSquare metric accross all epochs.
@@ -669,13 +697,18 @@ def main(dicts, count, params, gene_dict, num_genes, random_seed):
         preprocess_bool = False
 
     if sys.argv[1] == "GSC1":
-        data_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-        data_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-    else: 
-        data_path_1 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC2_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc2_stem_old_ATAC_process_with_featurecounts_RNAseq_entire_gene.npy"
-        data_path_2 = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files_GSC1_Stem_with_featurecounts_RNAseq_entire_gene/raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy"
-    
-    index_path = "/gpfs/data/rsingh47/Tapinos_Data/Realigned_data_files/ind_shuffle.npy"
+        data_path_1 = '../../../data/latest_versions_of_all_raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy'
+        
+        data_path_2 = '../../../data/latest_versions_of_all_raw/gsc2_stem_with_featurecounts_RNAseq_entire_gene.npy'
+        
+        
+    else:
+        data_path_1 = '../../../data/latest_versions_of_all_raw/gsc2_stem_with_featurecounts_RNAseq_entire_gene.npy'
+        
+        data_path_2 = '../../../data/latest_versions_of_all_raw/gsc1_stem_with_featurecounts_RNAseq_entire_gene.npy'
+        
+    index_path = '../../../data/ind_shuffle.npy'
+
 
     X_train, X_val, Y_train, Y_val, gene_dict, num_genes = get_data_train_val(data_path_1, index_path, gene_dict, num_genes, preprocess = preprocess_bool)
     X_test, Y_test, gene_dict, num_genes = get_data_test(data_path_2, index_path, gene_dict, num_genes, preprocess = preprocess_bool)
@@ -949,11 +982,13 @@ if __name__ == '__main__':
                     parameters = dict(batch_size_vals = [1024], learning_rate_vals = [0.001], unit_size = [80], 
                                     dropout_rate = [0.1], hidden_layer_size = [200], 
                                     epoch = [100, 200, 300, 500])
+                                      #epoch = [100])# use 100 epochs for results collection on new split method  
                 elif sys.argv[1] == "GSC2": 
                     # best params by tuning using GSC1
                     parameters = dict(batch_size_vals = [1024], learning_rate_vals = [0.001], unit_size = [30], 
                                     dropout_rate = [0.1], hidden_layer_size = [200], 
                                     epoch = [100, 200, 300, 500]) # try different number of epochs
+                                    #epoch = [100]) # use 100 epochs for results collection on new split method  
                     # best params by tuning using GSC2
                     # parameters = dict(batch_size_vals = [1024], learning_rate_vals = [0.001], unit_size = [80], 
                                     # dropout_rate = [0.1], hidden_layer_size = [200], 
@@ -1192,12 +1227,13 @@ if __name__ == '__main__':
                     #                 epoch = [100, 200, 300, 500]) 
         
         param_values = [v for v in parameters.values()]
-        seeds = list(range(10))
+        #seeds = list(range(10))
+        seeds = [10] # used to facilitate one seed per sub-dataset with review suggested split testing approach
         count = 0
         for seed in seeds:
             for params in product(*param_values): 
                 dicts = main(dicts, count, params, gene_dict, num_genes, str(seed))
-                count+=1
+                #count+=1 #commented out to facilitate one run per seed with review suggested split testing approach
 
 
     elif sys.argv[5] == "visualizing": 
