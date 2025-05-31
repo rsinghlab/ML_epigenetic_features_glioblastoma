@@ -5,6 +5,33 @@ Our study's two patient epigenetic marker files are provided in the [data](data)
 
 We evaluated the cross-patient prediction methodology with all of the model scripts using this project's datasets. We performed extended evaluation and analysis with the XGBoost-based model using both this study's datasets and those created by adapting data from the study "Chromatin landscapes reveal developmentally encoded transcriptional states that define human glioblastoma" (https://doi.org/10.1084/jem.20190196). (1) Their study's data is avaliable from the Gene ExpressionOmnibus under accessions [GSE119755](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119755) and [GSE119834](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE119834).  
 
+## Cross-patient prediction models:
+
+The project's cross-patient prediction models are avaliable in the following locations:
+
+XGBoost (XGBR) [code/models/xgboost/xgboost_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/xgboost/xgboost_cross_patient_pred_regression_gsc_stem_standard_log2.py)
+
+"Branched" Multi-layered Perceptron ("Branched" MLP)
+[code/models/mlp/mlp_cross_patient_regression_gsc_stem_sequence_standard_log2.py](code/models/mlp/mlp_cross_patient_regression_gsc_stem_sequence_standard_log2.py)
+
+Multi-layered Perceptron (MLP)
+[code/models/mlp/mlp_cross_patient_regression_gsc_stem_standard_log2.py](code/models/mlp/mlp_cross_patient_regression_gsc_stem_standard_log2.py)
+
+Convolutional Neural Network (CNN) 
+[code/models/cnn/cnn_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/cnn/cnn_cross_patient_pred_regression_gsc_stem_standard_log2.py)
+
+Recurrent Neural Network (RNN)
+[code/models/rnn/rnn_models.py](code/models/rnn/rnn_models.py)
+
+Gradient Boosting Regression (GBR)
+[code/models/gbr/gbr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/gbr/gbr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
+
+Support Vector Machine (SVR)
+[code/models/svm/svm_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/svm/svm_cross_patient_pred_regression_gsc_stem_standard_log2.py)
+
+Multiple Linear Regression (MLR)
+[code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
+
 ## Setup process:
 
 Clone this repository to the local filesystem using the link provided by the "Code" dropdown button above. For example:
@@ -38,33 +65,6 @@ pip3 install -r requirements.txt
 ```
 
 ## How run the model scripts:
-
-### Cross-patient prediction models:
-
-The project's cross-patient prediction models are avaliable in the following locations:
-
-XGBoost (XGBR) [code/models/xgboost/xgboost_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/xgboost/xgboost_cross_patient_pred_regression_gsc_stem_standard_log2.py)
-
-"Branched" Multi-layered Perceptron ("Branched" MLP)
-[code/models/mlp/mlp_cross_patient_regression_gsc_stem_sequence_standard_log2.py](code/models/mlp/mlp_cross_patient_regression_gsc_stem_sequence_standard_log2.py)
-
-Multi-layered Perceptron (MLP)
-[code/models/mlp/mlp_cross_patient_regression_gsc_stem_standard_log2.py](code/models/mlp/mlp_cross_patient_regression_gsc_stem_standard_log2.py)
-
-Convolutional Neural Network (CNN) 
-[code/models/cnn/cnn_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/cnn/cnn_cross_patient_pred_regression_gsc_stem_standard_log2.py)
-
-Recurrent Neural Network (RNN)
-[code/models/rnn/rnn_models.py](code/models/rnn/rnn_models.py)
-
-Gradient Boosting Regression (GBR)
-[code/models/gbr/gbr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/gbr/gbr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
-
-Support Vector Machine (SVR)
-[code/models/svm/svm_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/svm/svm_cross_patient_pred_regression_gsc_stem_standard_log2.py)
-
-Multiple Linear Regression (MLR)
-[code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py](code/models/mlr/mlr_cross_patient_pred_regression_gsc_stem_standard_log2.py)
 
 ### Script arguments
 ### XGBoost, Gradient Boosting Regression, Convolutional Neural Network, Multi-layered Perceptron, Support Vector Machine, and Multiple Linear Regression
